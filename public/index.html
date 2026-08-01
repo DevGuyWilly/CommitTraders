@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COT Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header style="margin-top: 60px">
+    <div class="header-top">
+      <h1>Commitment of Traders </h1>
+    </div>
+    <p class="subtitle">
+      Weekly Non-Commercial (speculator) net positioning. Net = Long − Short;
+      positive means speculators are net long. Cell shading shows how a value
+      compares to its own column's range in the visible weeks.
+    </p>
+    <select style="margin-top: 40px" id="instrument-select" aria-label="Select instrument"></select>
+  </header>
+
+  <main>
+    <table id="cot-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Long</th>
+          <th>Short</th>
+          <th>Change Long</th>
+          <th>Change Short</th>
+          <th>Net</th>
+          <th>Net % of OI</th>
+        </tr>
+      </thead>
+      <tbody id="cot-table-body">
+        <tr><td colspan="7" class="status">Loading…</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

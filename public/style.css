@@ -1,0 +1,141 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --row-alt: #f9fafb;
+  --positive: #15803d;
+  --negative: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #2b2f36;
+    --row-alt: #1b1e24;
+    --positive: #4ade80;
+    --negative: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1.5rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+header {
+  max-width: 900px;
+  margin: 0 auto 1.5rem;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.35rem;
+}
+
+#instrument-select {
+  background: var(--row-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  transition: filter 200ms ease, opacity 200ms ease;
+}
+
+table.is-loading {
+  filter: blur(3px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+th, td {
+  text-align: right;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th:first-child, td:first-child {
+  text-align: left;
+}
+
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.positive {
+  color: var(--positive);
+}
+
+.negative {
+  color: var(--negative);
+}
+
+.arrow {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+}
+
+.arrow.up {
+  color: var(--positive);
+}
+
+.arrow.down {
+  color: var(--negative);
+}
+
+.arrow.flat {
+  color: var(--muted);
+}
+
+.status {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem 0;
+}
+
+.status.error {
+  color: var(--negative);
+}

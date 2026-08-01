@@ -126,6 +126,11 @@ CREATE TABLE IF NOT EXISTS cot_reports (
 
 CREATE INDEX IF NOT EXISTS cot_reports_instrument_idx ON cot_reports (instrument);
 CREATE INDEX IF NOT EXISTS cot_reports_as_of_date_idx ON cot_reports (as_of_date);
+
+-- Matches the /cot-reports/:contractCode access pattern: filter by
+-- contract_code, keyset-paginate by as_of_date descending.
+CREATE INDEX IF NOT EXISTS cot_reports_contract_code_as_of_date_idx
+  ON cot_reports (contract_code, as_of_date DESC);
 `
 
 export async function migrate(): Promise<void> {
