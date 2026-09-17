@@ -1,116 +1,72 @@
-# About CommitTraders
-Digitalize Commitment of Traders Report to provide Retail/Day Traders with
-another tool in making informed decisions on Market forecast
+# CommitTraders
 
-## `Fastify Two Responsibility`
-1. Serve API
-2. Once a week, fetch the CFTC report, parse it, compute the derived fields and insert it into PostgreSQL
+Digitalizes the CFTC Commitment of Traders report so retail and day traders can track market positioning and use it as part of their forecasting process.
 
-## `The Flow`
+## How it works
 
-1. Cron Fires
-2. Download HTML
-3. Parse `<pre>` block
-4. Create typed object
-5. Compute derived fields
-6. Insert into PostgresSQL
+The app has two jobs:
 
----
+**Weekly ingestion** — every Friday at 8pm ET, fetches the CFTC Legacy Futures-Only report, parses each instrument section, computes derived fields, and upserts the results into PostgreSQL. Saturday and Monday runs catch reports delayed by federal holidays. Re-running is always safe — rows are upserted, never duplicated.
+
+**API** — exposes the stored data so clients can query the latest snapshot per instrument or page through historical weekly data.
+
+The derived fields computed on each row:
+- `noncommercial_net` / `commercial_net` = long − short
+- `*_net_pct_oi` = net ÷ open interest × 100
+- `change_*_net` = change in long − change in short
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [PostgreSQL](https://www.postgresql.org/) (v14+)
-
----
+- Node.js v18+
+- PostgreSQL v14+ (or a Supabase project)
 
 ## Local Setup
 
-### 1. Install dependencies
-
 ```bash
+# Install dependencies
 npm install
-```
 
-### 2. Create the database
-
-Make sure PostgreSQL is running, then create the database:
-
-```bash
+# Create the local database
 createdb commit_traders
-```
 
-### 3. Configure environment variables
-
-Copy the example env file and update the values:
-
-```bash
+# Configure environment
 cp .env.example .env
-```
+# Edit .env — set DATABASE_URL to your local or Supabase connection string
 
-Edit `.env` with your local connection string:
-
-```
-DATABASE_URL=postgres://<your-username>@localhost:5432/commit_traders
-```
-
-### 4. Run database migrations
-
-Creates the `cot_reports` table and indexes:
-
-```bash
+# Run migrations
 npm run db:migrate
-```
 
-### 5. (Optional) Ingest CFTC data
-
-Manually fetch and populate the database with the latest CFTC report:
-
-```bash
+# Seed with the latest CFTC data
 npm run cftc:ingest
-```
 
-### 6. Start the development server
-
-```bash
+# Start the dev server
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+App runs at `http://localhost:3000`.
 
----
+## Scripts
 
-## Available Scripts
+| Command | Description |
+|---|---|
+| `npm run dev` | Dev mode with TypeScript watch and auto-restart |
+| `npm start` | Build and start in production mode |
+| `npm run build:ts` | Compile TypeScript to `dist/` |
+| `npm run test` | Run test suite with coverage |
+| `npm run db:migrate` | Create tables and indexes if they don't exist |
+| `npm run cftc:ingest` | Manually trigger a CFTC ingestion run |
 
-### `npm run dev`
-Starts the app in development mode with TypeScript watch and auto-restart.
-
-### `npm start`
-Builds TypeScript and starts the app in production mode.
-
-### `npm run build:ts`
-Compiles TypeScript to `dist/`.
-
-### `npm run test`
-Runs the test suite with coverage.
-
-### `npm run db:migrate`
-Runs PostgreSQL migrations (creates tables and indexes if they don't exist).
-
-### `npm run cftc:ingest`
-Manually triggers CFTC report ingestion into the database.
-
----
-
-## API Endpoints
+## API
 
 | Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/cot-reports` | List latest COT reports by instrument |
-| GET | `/api/cot-reports/:contractCode` | Get history for a specific contract |
+|---|---|---|
+| GET | `/api/cot-reports` | Latest week per instrument |
+| GET | `/api/cot-reports/:contractCode` | Weekly history for a contract |
 
----
+The history endpoint accepts optional query params:
+- `limit` — number of weeks to return (default 52, max 260)
+- `before` — `YYYY-MM-DD` cursor for paging to older data
 
 ## Deployment
 
-For deploying CommitTraders using a 100% free-tier stack (Supabase PostgreSQL + Render/Koyeb Container Service), see the detailed [Deployment Guide](DEPLOYMENT.md).
+See [DEPLOYMENT.md](DEPLOYMENT.md) for deploying on Supabase + Render using the free tier.
