@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchHistory, fetchInstrumentList } from '../api/client'
-import { HEADLINE_METALS, matchHeadlineInstruments } from '../lib/instruments'
+import { displayNameFor, exchangeAbbreviation } from '../lib/instruments'
 
 export interface OverviewCard {
   instrument: string
   exchange: string
-  contractCode?: string
-  net?: number
-  netPctOi?: number
+  contractCode: string
+  net: number
+  netPctOi: number
   long?: number
   short?: number
-  href?: string
+  href: string
 }
 
 export interface UseOverviewCardsResult {
@@ -20,17 +20,14 @@ export interface UseOverviewCardsResult {
   error: Error | null
 }
 
-const emptyCards = (): OverviewCard[] =>
-  HEADLINE_METALS.map((metal) => ({ instrument: metal.name, exchange: metal.exchange }))
-
 /**
- * The list endpoint (/api/cot-reports) doesn't return long/short, only
- * net/netPctOi — so for the small, bounded set of headline metals that do
- * have data, we fetch their latest single row (?limit=1) too, to fill in
- * the card's Long/Short figures without changing the backend.
+ * One card per instrument the backend actually has data for — no fixed
+ * curation. The list endpoint doesn't return long/short (only net/netPctOi),
+ * so we additionally fetch each instrument's latest single row (?limit=1)
+ * to fill those in, without changing the backend.
  */
 export function useOverviewCards(): UseOverviewCardsResult {
-  const [cards, setCards] = useState<OverviewCard[]>(emptyCards)
+  const [cards, setCards] = useState<OverviewCard[]>([])
   const [updatedDate, setUpdatedDate] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -50,34 +47,24 @@ export function useOverviewCards(): UseOverviewCardsResult {
         )
         setUpdatedDate(latest)
 
-        const matched = matchHeadlineInstruments(summaries)
-
         const details = await Promise.all(
-          matched.map(({ summary }) =>
-            summary ? fetchHistory(summary.contractCode, { limit: 1 }).catch(() => null) : Promise.resolve(null)
-          )
+          summaries.map((summary) => fetchHistory(summary.contractCode, { limit: 1 }).catch(() => null))
         )
 
         if (requestId !== requestIdRef.current) return
 
-        // Any headline metal the backend actually has data for is linkable —
-        // gated on data presence, not a fixed rollout allowlist.
-        const nextCards: OverviewCard[] = matched.map(({ metal, summary }, i) => {
-          if (!summary) return { instrument: metal.name, exchange: metal.exchange }
-
-          const latestRow = details[i]?.data[0]
-
-          return {
-            instrument: metal.name,
-            exchange: metal.exchange,
+        const nextCards: OverviewCard[] = summaries
+          .map((summary, i) => ({
+            instrument: displayNameFor(summary.instrument),
+            exchange: exchangeAbbreviation(summary.exchange),
             contractCode: summary.contractCode,
             net: summary.net,
             netPctOi: summary.netPctOi,
-            long: latestRow?.long,
-            short: latestRow?.short,
+            long: details[i]?.data[0]?.long,
+            short: details[i]?.data[0]?.short,
             href: `/instruments/${summary.contractCode}`
-          }
-        })
+          }))
+          .sort((a, b) => a.instrument.localeCompare(b.instrument))
 
         setCards(nextCards)
         setError(null)

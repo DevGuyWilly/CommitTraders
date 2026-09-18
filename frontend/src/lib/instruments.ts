@@ -1,45 +1,38 @@
-import type { CotInstrumentSummary } from '../api/types'
+/** Well-known metals get a clean display name; matched by prefix against raw CFTC labels. */
+const KNOWN_METAL_NAMES = ['Gold', 'Silver', 'Copper', 'Platinum', 'Palladium']
 
-export interface HeadlineMetal {
-  name: string
-  exchange: string
+const KNOWN_ACRONYMS = ['MWP', 'HRC']
+
+function titleCaseToken(token: string): string {
+  const upper = token.toUpperCase()
+  if (KNOWN_ACRONYMS.includes(upper)) return upper
+  if (token.length === 0) return token
+  return token[0].toUpperCase() + token.slice(1).toLowerCase()
+}
+
+function titleCaseWord(word: string): string {
+  return word.split('-').map(titleCaseToken).join('-')
 }
 
 /**
- * The five headline metals cards shown on the Overview grid, regardless of
- * which ones the backend currently has data for. Matched against the live
- * `/api/cot-reports` list by name prefix (backend instrument names are raw
- * CFTC labels, e.g. "COPPER- #1", not "Copper").
+ * Maps a raw backend instrument label (e.g. "GOLD", "COPPER- #1",
+ * "ALUMINUM MWP") to a display name. Known metals get their clean name;
+ * anything else gets a generic title-case pass (with a couple of known
+ * acronyms like MWP/HRC kept uppercase).
  */
-export const HEADLINE_METALS: HeadlineMetal[] = [
-  { name: 'Gold', exchange: 'COMEX' },
-  { name: 'Silver', exchange: 'COMEX' },
-  { name: 'Copper', exchange: 'COMEX' },
-  { name: 'Platinum', exchange: 'NYMEX' },
-  { name: 'Palladium', exchange: 'NYMEX' }
-]
-
-/** Maps a raw backend instrument label (e.g. "GOLD", "COPPER- #1") to its display name ("Gold", "Copper"). */
 export function displayNameFor(rawInstrument: string): string {
-  const match = HEADLINE_METALS.find((metal) =>
-    rawInstrument.toUpperCase().startsWith(metal.name.toUpperCase())
-  )
-  return match?.name ?? rawInstrument
+  const known = KNOWN_METAL_NAMES.find((name) => rawInstrument.toUpperCase().startsWith(name.toUpperCase()))
+  if (known) return known
+
+  return rawInstrument.split(' ').map(titleCaseWord).join(' ')
 }
 
-export interface HeadlineMatch {
-  metal: HeadlineMetal
-  summary?: CotInstrumentSummary
+const EXCHANGE_ABBREVIATIONS: Record<string, string> = {
+  'COMMODITY EXCHANGE INC.': 'COMEX',
+  'NEW YORK MERCANTILE EXCHANGE': 'NYMEX'
 }
 
-/**
- * Pairs each headline metal with its live summary row, if the backend has
- * one. A card/select entry is linkable exactly when `summary` is present —
- * i.e. driven by real data, not a fixed allowlist.
- */
-export function matchHeadlineInstruments(summaries: CotInstrumentSummary[]): HeadlineMatch[] {
-  return HEADLINE_METALS.map((metal) => ({
-    metal,
-    summary: summaries.find((s) => s.instrument.toUpperCase().startsWith(metal.name.toUpperCase()))
-  }))
+/** Shortens a raw CFTC exchange name to its common abbreviation, e.g. "COMMODITY EXCHANGE INC." -> "COMEX". */
+export function exchangeAbbreviation(rawExchange: string): string {
+  return EXCHANGE_ABBREVIATIONS[rawExchange.toUpperCase()] ?? rawExchange
 }

@@ -7,7 +7,7 @@ import { TrendChart } from '../components/TrendChart'
 import { HeatmapTable } from '../components/HeatmapTable'
 import { useCoT } from '../hooks/useCoT'
 import { useInstrumentList } from '../hooks/useInstrumentList'
-import { displayNameFor, matchHeadlineInstruments } from '../lib/instruments'
+import { displayNameFor } from '../lib/instruments'
 import { formatSigned, numberFormatter, pctFormatter } from '../lib/format'
 import styles from './Detail.module.css'
 
@@ -31,10 +31,9 @@ export function Detail() {
   const displayName = current ? displayNameFor(current.instrument) : contractCode
   const latest = rows[0]
 
-  // Same headline-metal set as Overview, limited to the ones the backend actually has data for.
-  const selectOptions = matchHeadlineInstruments(instruments)
-    .filter((match) => match.summary !== undefined)
-    .map((match) => ({ value: match.summary!.contractCode, label: match.metal.name }))
+  const selectOptions = instruments
+    .map((inst) => ({ value: inst.contractCode, label: displayNameFor(inst.instrument) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 
   return (
     <div>
