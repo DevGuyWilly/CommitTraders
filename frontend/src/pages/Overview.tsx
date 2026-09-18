@@ -1,0 +1,53 @@
+import { NavBar } from '../components/NavBar'
+import { InstrumentCard } from '../components/InstrumentCard'
+import { useOverviewCards } from '../hooks/useOverviewCards'
+import { formatDate } from '../lib/format'
+import styles from './Overview.module.css'
+
+export function Overview() {
+  const { cards, updatedDate, loading, error } = useOverviewCards()
+
+  return (
+    <div>
+      <NavBar />
+      <main className={styles.main}>
+        <div className={styles.headerRow}>
+          <div>
+            <span className={styles.eyebrow}>Commitment of Traders</span>
+            <h1 className={styles.title}>Metals</h1>
+            <p className={styles.subtitle}>
+              Weekly Non-Commercial (speculator) net positioning across CME metals futures. Net = Long
+              minus Short; positive means speculators are net long.
+            </p>
+          </div>
+          {updatedDate && (
+            <div className={styles.updated}>
+              <span className={styles.updatedLabel}>Updated</span>
+              <span className={styles.updatedValue}>{formatDate(updatedDate)}</span>
+            </div>
+          )}
+        </div>
+
+        {error ? (
+          <p className={styles.error}>Couldn&rsquo;t load market data ({error.message}).</p>
+        ) : (
+          <div className={styles.grid} aria-busy={loading}>
+            {cards.map((card) => (
+              <InstrumentCard
+                key={card.instrument}
+                instrument={card.instrument}
+                exchange={card.exchange}
+                contractCode={card.contractCode}
+                net={card.net}
+                netPctOi={card.netPctOi}
+                long={card.long}
+                short={card.short}
+                href={card.href}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

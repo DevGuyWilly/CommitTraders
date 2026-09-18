@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.arrow {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.positive {
+  background: rgba(62, 207, 142, 0.14);
+  color: var(--color-positive);
+}
+
+.negative {
+  background: rgba(240, 98, 95, 0.14);
+  color: var(--color-negative);
+}
+
+.neutral {
+  background: rgba(148, 152, 163, 0.14);
+  color: var(--color-text-muted);
+}

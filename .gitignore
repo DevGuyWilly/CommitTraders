@@ -66,3 +66,6 @@ dist
 
 # environment variables
 .env
+
+# local notes (not tracked)
+NOTES.md
