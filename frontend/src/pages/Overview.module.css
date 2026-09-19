@@ -69,6 +69,17 @@
   color: var(--color-negative);
 }
 
+.learn {
+  margin-bottom: var(--space-section-gap-lg);
+}
+
+.below {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-section-gap-lg);
+  margin-top: var(--space-section-gap-lg);
+}
+
 @media (max-width: 1023px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);

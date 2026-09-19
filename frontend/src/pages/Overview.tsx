@@ -1,5 +1,10 @@
 import { NavBar } from '../components/NavBar'
 import { InstrumentCard } from '../components/InstrumentCard'
+import { FaqAccordion } from '../components/FaqAccordion'
+import { AlertsForm } from '../components/AlertsForm'
+import { LearnTrigger } from '../components/LearnTrigger'
+import { EXPLAINER_VIDEO } from '../content/explainerVideo'
+import { FAQ_ITEMS } from '../content/faq'
 import { useOverviewCards } from '../hooks/useOverviewCards'
 import { formatDate } from '../lib/format'
 import styles from './Overview.module.css'
@@ -28,6 +33,10 @@ export function Overview() {
           )}
         </div>
 
+        <div className={styles.learn}>
+          <LearnTrigger video={EXPLAINER_VIDEO} />
+        </div>
+
         {error ? (
           <p className={styles.error}>Couldn&rsquo;t load market data ({error.message}).</p>
         ) : (
@@ -47,6 +56,17 @@ export function Overview() {
             ))}
           </div>
         )}
+
+        <div className={styles.below}>
+          <FaqAccordion items={FAQ_ITEMS} />
+          <AlertsForm
+            instruments={cards.map((card) => ({
+              id: card.contractCode,
+              label: card.instrument,
+              defaultChecked: card.instrument === 'Gold'
+            }))}
+          />
+        </div>
       </main>
     </div>
   )

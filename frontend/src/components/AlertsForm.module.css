@@ -1,0 +1,188 @@
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 20px 24px 24px;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.intro {
+  max-width: 680px;
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.form {
+  margin: 0;
+}
+
+.fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 20px;
+  min-width: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.chip {
+  position: relative;
+}
+
+/* Visually hidden but still focusable, so keyboard and screen-reader behavior is native. */
+.chipInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.chipLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.chipLabel:hover {
+  border-color: #3a3e4a;
+  background: #16181d;
+}
+
+.chipInput:checked + .chipLabel {
+  border-color: var(--color-accent);
+  background: rgba(212, 162, 78, 0.12);
+  color: var(--color-text-primary);
+}
+
+.chipInput:focus-visible + .chipLabel {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.check {
+  display: none;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.chipInput:checked + .chipLabel .check {
+  display: block;
+}
+
+.hint {
+  padding: 8px 16px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  color: var(--color-text-faint);
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.button {
+  height: 44px;
+  padding: 0 24px;
+  background: #16181d;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  color: var(--color-text-faint);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: not-allowed;
+}
+
+.caption {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 767px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .button {
+    width: 100%;
+  }
+}
