@@ -1,13 +1,13 @@
 .main {
-  max-width: 1344px;
+  max-width: 84rem;
   margin: 0 auto;
-  padding: 32px var(--space-page-x) 64px;
+  padding: 2rem var(--space-page-x) 4rem;
 }
 
 .breadcrumb {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--color-text-faint);
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
 .breadcrumb a {
@@ -26,20 +26,20 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 24px;
+  gap: 1.5rem;
   margin-bottom: var(--space-section-gap-lg);
 }
 
 .title {
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 0.625rem;
 }
 
 .subtitle {
-  max-width: 680px;
+  max-width: 42.5rem;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.6;
   margin: 0;
 }
@@ -57,7 +57,7 @@
 
 .error {
   color: var(--color-negative);
-  margin: -12px 0 var(--space-section-gap-lg);
+  margin: -0.75rem 0 var(--space-section-gap-lg);
 }
 
 @media (max-width: 1023px) {

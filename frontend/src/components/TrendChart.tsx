@@ -2,6 +2,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } fro
 import type { CotTableRow } from '../api/types'
 import { buildSeriesWithGaps, niceAxisBounds, pickEdgeTicks } from '../lib/chartHelpers'
 import { formatAxisDate, formatSigned, pctFormatter } from '../lib/format'
+import { rootScale, scaled } from '../lib/scale'
 import styles from './TrendChart.module.css'
 
 export interface TrendChartProps {
@@ -43,13 +44,12 @@ function makeDotRenderer(lastIndex: number, color: string) {
 
     const label = `${formatSigned(payload.netPctOi, pctFormatter)}%`
     const labelWidth = 26 + label.length * 7.5
-    const boxX = cx - labelWidth - 12
-    const boxY = cy - 34
 
+    // Drawn in design pixels relative to the point, then scaled as one group.
     return (
-      <g key={`dot-${index}`}>
-        <circle cx={cx} cy={cy} r={4} fill={color} stroke="var(--color-surface-alt)" strokeWidth={2} />
-        <g transform={`translate(${boxX}, ${boxY})`}>
+      <g key={`dot-${index}`} transform={`translate(${cx}, ${cy}) scale(${rootScale()})`}>
+        <circle r={4} fill={color} stroke="var(--color-surface-alt)" strokeWidth={2} />
+        <g transform={`translate(${-labelWidth - 12}, -34)`}>
           <rect
             width={labelWidth}
             height={26}
@@ -97,7 +97,7 @@ export function TrendChart({ rows, loading = false }: TrendChartProps) {
       <div className={styles.container}>
         {header}
         <div className={styles.singlePointWrap}>
-          <svg width="100%" height="260" viewBox="0 0 800 260" preserveAspectRatio="none">
+          <svg width="100%" height={scaled(260)} viewBox="0 0 800 260" preserveAspectRatio="none">
             <circle cx={400} cy={130} r={5} fill={color} />
           </svg>
           <div className={styles.singleCallout}>
@@ -118,8 +118,8 @@ export function TrendChart({ rows, loading = false }: TrendChartProps) {
     <div className={styles.container}>
       {header}
       <div className={`${styles.chartWrap} ${loading ? styles.isLoading : ''}`}>
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={points} margin={{ top: 30, right: 60, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={scaled(260)}>
+          <AreaChart data={points} margin={{ top: scaled(30), right: scaled(60), left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={color} stopOpacity={0.35} />
@@ -131,7 +131,7 @@ export function TrendChart({ rows, loading = false }: TrendChartProps) {
               dataKey="date"
               ticks={xTicks}
               tickFormatter={(value: string) => formatAxisDate(value)}
-              tick={{ fill: 'var(--color-text-faint)', fontSize: 12 }}
+              tick={{ fill: 'var(--color-text-faint)', fontSize: scaled(12) }}
               axisLine={{ stroke: 'var(--color-border-strong)' }}
               tickLine={false}
             />
@@ -139,16 +139,16 @@ export function TrendChart({ rows, loading = false }: TrendChartProps) {
               domain={[min, max]}
               ticks={ticks}
               tickFormatter={(value: number) => `${value}%`}
-              tick={{ fill: 'var(--color-text-faint)', fontSize: 12 }}
+              tick={{ fill: 'var(--color-text-faint)', fontSize: scaled(12) }}
               axisLine={false}
               tickLine={false}
-              width={48}
+              width={scaled(48)}
             />
             <Area
               type="monotone"
               dataKey="netPctOi"
               stroke={color}
-              strokeWidth={2}
+              strokeWidth={scaled(2)}
               fill="url(#trendGradient)"
               connectNulls={false}
               isAnimationActive={false}

@@ -16,12 +16,12 @@
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'IBM Plex Sans', sans-serif;
 
-  --radius-card: 8px;
-  --radius-pill: 100px;
-  --radius-input: 6px;
+  --radius-card: 0.5rem;
+  --radius-pill: 6.25rem;
+  --radius-input: 0.375rem;
 
-  --space-page-x: 48px;
-  --space-card-gap: 20px;
-  --space-section-gap-sm: 16px;
-  --space-section-gap-lg: 32px;
+  --space-page-x: 3rem;
+  --space-card-gap: 1.25rem;
+  --space-section-gap-sm: 1rem;
+  --space-section-gap-lg: 2rem;
 }

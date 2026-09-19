@@ -10,11 +10,22 @@ body {
   padding: 0;
 }
 
+/*
+ * Global UI scale. All sizes are in rem (designed against a 16px root), so
+ * this one value scales the whole interface — the equivalent of 80% browser
+ * zoom on every screen size. Change it here only; chart sizes that can't use
+ * rem read it through lib/scale.ts. The only px left are 1px hairlines and
+ * the @media breakpoints.
+ */
+html {
+  font-size: 80%;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text-secondary);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
