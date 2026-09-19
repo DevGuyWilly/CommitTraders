@@ -89,6 +89,16 @@ The application has built-in `node-cron` scheduling (`src/plugins/cron.ts`) that
 
 ---
 
+## 5. SEO
+
+The app is a client-rendered SPA, so the server fills in per-page `<head>` tags and a crawlable HTML snapshot (`src/services/seo.service.ts`). It also serves `/robots.txt` and `/sitemap.xml`.
+
+- **Canonical URLs / sitemap origin**: taken from `SITE_URL`, else Render's automatic `RENDER_EXTERNAL_URL`. Once a custom domain is attached, set `SITE_URL` to it (e.g. `https://www.example.com`), otherwise canonicals keep pointing at the `*.onrender.com` address.
+- **After deploying**: add the site in [Google Search Console](https://search.google.com/search-console), submit `/sitemap.xml`, and use URL Inspection on `/` and one instrument page to confirm the rendered HTML looks right.
+- **Free-tier cold starts**: a sleeping Render instance takes ~a minute to answer, which hurts crawling and page speed. Keep it awake with a ping (see section 4) or move to a paid instance.
+
+---
+
 ## Summary Checklist
 
 - [ ] Supabase PostgreSQL database created.

@@ -6,6 +6,7 @@ import { SignedValue } from '../components/SignedValue'
 import { TrendChart } from '../components/TrendChart'
 import { HeatmapTable } from '../components/HeatmapTable'
 import { useCoT } from '../hooks/useCoT'
+import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useInstrumentList } from '../hooks/useInstrumentList'
 import { displayNameFor } from '../lib/instruments'
 import { formatSigned, numberFormatter, pctFormatter } from '../lib/format'
@@ -30,6 +31,10 @@ export function Detail() {
   const current = instruments.find((inst) => inst.contractCode === contractCode)
   const displayName = current ? displayNameFor(current.instrument) : contractCode
   const latest = rows[0]
+
+  // Kept in step with the title built in src/services/seo.service.ts. Held back
+  // until the instrument list loads so the raw contract code never shows in the tab.
+  useDocumentMeta(current ? `${displayName} COT Report: Speculator Net Positioning | CommitTraders` : undefined)
 
   const selectOptions = instruments
     .map((inst) => ({ value: inst.contractCode, label: displayNameFor(inst.instrument) }))

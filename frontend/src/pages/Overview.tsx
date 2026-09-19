@@ -5,12 +5,17 @@ import { AlertsForm } from '../components/AlertsForm'
 import { LearnTrigger } from '../components/LearnTrigger'
 import { EXPLAINER_VIDEO } from '../content/explainerVideo'
 import { FAQ_ITEMS } from '../content/faq'
+import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useOverviewCards } from '../hooks/useOverviewCards'
 import { formatDate } from '../lib/format'
 import styles from './Overview.module.css'
 
+// Kept in step with OVERVIEW_TITLE in src/services/seo.service.ts.
+const PAGE_TITLE = 'Commitment of Traders (COT) Report Dashboard | CommitTraders'
+
 export function Overview() {
   const { cards, updatedDate, loading, error } = useOverviewCards()
+  useDocumentMeta(PAGE_TITLE)
 
   return (
     <div>

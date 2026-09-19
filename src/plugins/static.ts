@@ -1,15 +1,18 @@
 import path from 'node:path'
 import fp from 'fastify-plugin'
 import fastifyStatic from '@fastify/static'
+import { buildNotFoundPage, resolveSiteUrl, sendPage } from '../services/seo.service'
 
 export default fp(async (fastify) => {
   await fastify.register(fastifyStatic, {
     root: path.join(__dirname, '..', '..', 'frontend', 'dist')
   })
 
-  // SPA fallback: client-side routes (e.g. /instruments/:contractCode) have
-  // no matching file on disk, so a direct load or refresh would otherwise
-  // 404. Genuine unmatched API routes still 404 with the usual shape.
+  // The SPA's real pages ("/" and "/instruments/:contractCode") have their own
+  // routes, so anything landing here matches neither a file nor a page. It
+  // still gets the app shell (the client redirects unknown paths to "/"), but
+  // with a genuine 404 status and noindex so search engines drop the URL
+  // instead of treating every path on the site as valid content.
   fastify.setNotFoundHandler((request, reply) => {
     if (request.url.startsWith('/api/')) {
       reply.code(404).send({
@@ -20,6 +23,6 @@ export default fp(async (fastify) => {
       return
     }
 
-    reply.sendFile('index.html')
+    return sendPage(reply, 404, buildNotFoundPage(), resolveSiteUrl(request))
   })
 })

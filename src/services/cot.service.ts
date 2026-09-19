@@ -37,6 +37,17 @@ function toTableRow(row: CotReportRow): CotTableRow {
   }
 }
 
+function toInstrumentSummary(row: CotReportRow): CotInstrumentSummary {
+  return {
+    instrument: row.instrument,
+    contractCode: row.contract_code,
+    exchange: row.exchange,
+    asOfDate: row.as_of_date,
+    net: row.noncommercial_net,
+    netPctOi: row.noncommercial_net_pct_oi
+  }
+}
+
 /** Latest reported week per instrument, for a dashboard overview list. */
 export async function listLatestByInstrument(): Promise<CotInstrumentSummary[]> {
   const { rows } = await pool.query<CotReportRow>(
@@ -45,14 +56,20 @@ export async function listLatestByInstrument(): Promise<CotInstrumentSummary[]> 
      ORDER BY contract_code, as_of_date DESC`
   )
 
-  return rows.map((row) => ({
-    instrument: row.instrument,
-    contractCode: row.contract_code,
-    exchange: row.exchange,
-    asOfDate: row.as_of_date,
-    net: row.noncommercial_net,
-    netPctOi: row.noncommercial_net_pct_oi
-  }))
+  return rows.map(toInstrumentSummary)
+}
+
+/** Latest reported week for one instrument, or null if the contract code is unknown. */
+export async function getLatestSummary(contractCode: string): Promise<CotInstrumentSummary | null> {
+  const { rows } = await pool.query<CotReportRow>(
+    `SELECT * FROM cot_reports
+     WHERE contract_code = $1
+     ORDER BY as_of_date DESC
+     LIMIT 1`,
+    [contractCode]
+  )
+
+  return rows.length === 0 ? null : toInstrumentSummary(rows[0])
 }
 
 export const DEFAULT_HISTORY_PAGE_SIZE = 52 // ~1 year of weekly reports
