@@ -17,7 +17,7 @@ syncTffInstruments({ dryRun })
     }
 
     if (result.toAdd.length > 0 && !dryRun) {
-      console.log('Next: npm run cftc:backfill, then npm run instruments:activate -- --all')
+      console.log('Next: npm run cftc:backfill, then npm run instruments:activate-all')
     }
   })
   .catch((err) => {

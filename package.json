@@ -18,6 +18,7 @@
     "cftc:ingest": "ts-node src/jobs/ingest-cftc.ts",
     "cftc:backfill": "ts-node src/jobs/backfill-cftc.ts",
     "instruments:activate": "ts-node src/jobs/activate-instrument.ts",
+    "instruments:activate-all": "ts-node src/jobs/activate-instrument.ts --all",
     "instruments:sync-tff": "ts-node src/jobs/sync-tff-instruments.ts"
   },
   "keywords": [],

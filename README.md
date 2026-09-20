@@ -59,7 +59,8 @@ App runs at `http://localhost:3000`.
 | `npm run cftc:ingest` | Manually trigger a CFTC ingestion run (latest week, all report formats) |
 | `npm run cftc:backfill [-- --from 2025]` | Load TFF history from a year to present (default 2025); safe to re-run |
 | `npm run instruments:sync-tff [-- --dry-run]` | Register every contract in the current TFF report that isn't in the registry yet (inactive, not featured) |
-| `npm run instruments:activate -- <code> ...` | Turn instruments on for the API, one at a time; refuses if no data is stored. `-- --all` activates every inactive instrument that has data |
+| `npm run instruments:activate -- <code> ...` | Turn instruments on for the API, one at a time; refuses if no data is stored |
+| `npm run instruments:activate-all` | Activate every inactive instrument that already has stored data, one at a time |
 | `npm run test` (in `frontend/`) | Frontend unit tests (search matching); needs Node 22.6+ |
 
 ## API
