@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { FastifyReply } from 'fastify'
 import type { CotInstrumentSummary, CotTableRow } from './cot.service'
-import { displayNameFor, exchangeAbbreviation } from './instruments'
+import { CATEGORY_ORDER, categoryLabel } from './report-formats'
 
 /**
  * The frontend is a client-rendered SPA, so its index.html is an empty shell
@@ -37,9 +37,16 @@ export interface Page {
 // Kept in step with the <title> set client-side in frontend/src/pages/Overview.tsx.
 const OVERVIEW_TITLE = `Commitment of Traders (COT) Report Dashboard | ${SITE_NAME}`
 
-const OVERVIEW_DESCRIPTION =
-  'Weekly CFTC Commitment of Traders (COT) data for gold, silver, copper and other metals futures. ' +
-  'Speculator net positioning, trend charts and full history.'
+/** "Metals", "Financials" -> "Metals and Financials". Comes from the instruments that are actually live. */
+function joinLabels(labels: string[]): string {
+  return labels.length <= 2 ? labels.join(' and ') : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+}
+
+/** Labels of the categories present, in the app's display order regardless of how the list arrives. */
+function categoryLabelsOf(instruments: CotInstrumentSummary[]): string[] {
+  const present = new Set(instruments.map((item) => item.category))
+  return CATEGORY_ORDER.filter((category) => present.has(category)).map(categoryLabel)
+}
 
 // ---------------------------------------------------------------------------
 // Template + site URL
@@ -169,44 +176,63 @@ export function sendPage(reply: FastifyReply, statusCode: number, page: Page, si
 // ---------------------------------------------------------------------------
 
 export function buildOverviewPage(instruments: CotInstrumentSummary[], siteUrl: string): Page {
-  const rows = instruments
-    .map((item) => ({ ...item, name: displayNameFor(item.instrument) }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const labels = categoryLabelsOf(instruments)
+  const joined = joinLabels(labels)
 
-  const latest = rows.reduce<string | undefined>(
-    (acc, item) => (!acc || item.asOfDate > acc ? item.asOfDate : acc),
-    undefined
-  )
+  const sections = labels
+    .map((label) => {
+      const inCategory = instruments
+        .filter((item) => item.categoryLabel === label)
+        .sort((a, b) => a.displayName.localeCompare(b.displayName))
 
-  const tableRows = rows
-    .map((item) => `
-        <tr>
-          <td><a href="/instruments/${encodeURIComponent(item.contractCode)}">${escapeHtml(item.name)}</a></td>
-          <td>${escapeHtml(exchangeAbbreviation(item.exchange))}</td>
-          <td>${formatSigned(item.net)}</td>
-          <td>${formatSigned(item.netPctOi, pctFormatter)}%</td>
-        </tr>`)
+      const latest = inCategory.reduce<string | undefined>(
+        (acc, item) => (!acc || item.asOfDate > acc ? item.asOfDate : acc),
+        undefined
+      )
+
+      const tableRows = inCategory
+        .map((item) => `
+          <tr>
+            <td><a href="/instruments/${encodeURIComponent(item.contractCode)}">${escapeHtml(item.displayName)}</a></td>
+            <td>${escapeHtml(item.exchange)}</td>
+            <td>${escapeHtml(item.primaryCategoryLabel)}</td>
+            <td>${formatSigned(item.net)}</td>
+            <td>${formatSigned(item.netPctOi, pctFormatter)}%</td>
+          </tr>`)
+        .join('')
+
+      return `
+      <section>
+        <h2>${escapeHtml(label)}</h2>
+        <table>
+          <caption>Latest weekly positioning${latest ? ` (as of ${formatDate(latest)})` : ''}</caption>
+          <thead>
+            <tr><th scope="col">Instrument</th><th scope="col">Exchange</th><th scope="col">Trader group</th><th scope="col">Net</th><th scope="col">Net % of OI</th></tr>
+          </thead>
+          <tbody>${tableRows}
+          </tbody>
+        </table>
+      </section>`
+    })
     .join('')
+
+  // With nothing live yet (a fresh database), avoid a dangling "Report: " and "across  markets".
+  const heading = joined ? `Commitment of Traders (COT) Report: ${joined}` : 'Commitment of Traders (COT) Report'
+  const scope = joined ? ` across ${joined.toLowerCase()} futures` : ''
 
   const body = `
     <main>
-      <h1>Commitment of Traders (COT) Report: Metals</h1>
-      <p>Weekly Non-Commercial (speculator) net positioning across CME metals futures, from the CFTC Legacy
-      Futures-Only report. Net = Long minus Short; positive means speculators are net long.</p>
-      <table>
-        <caption>Latest weekly positioning${latest ? ` (as of ${formatDate(latest)})` : ''}</caption>
-        <thead>
-          <tr><th scope="col">Instrument</th><th scope="col">Exchange</th><th scope="col">Net</th><th scope="col">Net % of OI</th></tr>
-        </thead>
-        <tbody>${tableRows}
-        </tbody>
-      </table>
+      <h1>${escapeHtml(heading)}</h1>
+      <p>Weekly CFTC net positioning${escapeHtml(scope)}, for the trader group each report treats as
+      speculators. Net = Long minus Short; positive means the group is net long.</p>${sections}
     </main>`
 
   return {
     seo: {
       title: OVERVIEW_TITLE,
-      description: OVERVIEW_DESCRIPTION,
+      description:
+        `Weekly CFTC Commitment of Traders (COT) data${joined ? ` across ${joined} markets` : ''}. ` +
+        'Net positioning, trend charts and full history.',
       path: '/',
       jsonLd: [{
         '@context': 'https://schema.org',
@@ -224,8 +250,9 @@ export function buildInstrumentPage(
   recentRows: CotTableRow[],
   siteUrl: string
 ): Page {
-  const name = displayNameFor(summary.instrument)
-  const exchange = exchangeAbbreviation(summary.exchange)
+  const name = summary.displayName
+  const exchange = summary.exchange
+  const label = summary.primaryCategoryLabel
   const pagePath = `/instruments/${encodeURIComponent(summary.contractCode)}`
   const asOf = formatDate(summary.asOfDate)
   const latest = recentRows[0]
@@ -244,10 +271,10 @@ export function buildInstrumentPage(
   const body = `
     <main>
       <nav aria-label="Breadcrumb"><a href="/">Markets</a> / <span>${escapeHtml(name)}</span></nav>
-      <h1>${escapeHtml(name)} &mdash; Non-Commercial Net Positioning</h1>
-      <p>Weekly speculator net positioning for ${escapeHtml(name)} (${escapeHtml(exchange)}), from the CFTC Legacy
-      Futures-Only Commitment of Traders report. Net = Long minus Short; positive means speculators are net long.</p>
-      <p>As of ${asOf}, speculators were ${describeNet(summary.net)}, ${pctFormatter.format(Math.abs(summary.netPctOi))}% of open interest${
+      <h1>${escapeHtml(name)} &mdash; ${escapeHtml(label)} Net Positioning</h1>
+      <p>Weekly ${escapeHtml(label)} net positioning for ${escapeHtml(name)} (${escapeHtml(exchange)}). Source:
+      ${escapeHtml(summary.reportFormatLabel)}. Net = Long minus Short; positive means net long.</p>
+      <p>As of ${asOf}, ${escapeHtml(label)} were ${describeNet(summary.net)}, ${pctFormatter.format(Math.abs(summary.netPctOi))}% of open interest${
         latest ? ` (${numberFormatter.format(latest.long)} long, ${numberFormatter.format(latest.short)} short)` : ''
       }.</p>
       <table>
@@ -265,7 +292,7 @@ export function buildInstrumentPage(
       // Kept in step with the <title> set client-side in frontend/src/pages/Detail.tsx.
       title: `${name} COT Report: Speculator Net Positioning | ${SITE_NAME}`,
       description:
-        `${name} COT report: speculators were ${describeNet(summary.net)} ` +
+        `${name} COT report: ${label} were ${describeNet(summary.net)} ` +
         `(${pctFormatter.format(Math.abs(summary.netPctOi))}% of open interest) as of ${asOf}. ` +
         'Weekly Commitment of Traders history and chart.',
       path: pagePath,

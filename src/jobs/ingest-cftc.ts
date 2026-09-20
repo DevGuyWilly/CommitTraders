@@ -3,11 +3,14 @@ import { closePool } from '../db/client'
 
 runWeeklyCftcIngestion()
   .then((summaries) => {
-    for (const summary of summaries) {
-      console.log(`Ingested ${summary.instrumentsIngested} instrument(s) from "${summary.reportName}" report (${summary.url})`)
+    for (const s of summaries) {
+      console.log(
+        `${s.reportName}: ${s.rowsUpserted} row(s) stored, ${s.unregisteredRows} ignored (not in registry), ` +
+        `${s.skippedRows} unreadable (${s.url})` +
+        (s.missingContracts.length > 0 ? `\n  WARNING registered but absent from this report: ${s.missingContracts.join(', ')}` : '')
+      )
     }
-    const total = summaries.reduce((sum, s) => sum + s.instrumentsIngested, 0)
-    console.log(`Done. Ingested ${total} instrument(s) total.`)
+    console.log(`Done. ${summaries.reduce((sum, s) => sum + s.rowsUpserted, 0)} row(s) stored in total.`)
   })
   .catch((err) => {
     console.error('CFTC ingestion failed:', err)

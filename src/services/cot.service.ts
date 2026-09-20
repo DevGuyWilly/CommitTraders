@@ -1,10 +1,12 @@
 import { pool } from '../db/client'
-import type { CotReportRow } from '../db/schema'
+import type { CotReportRow, InstrumentCategory, ReportFormat } from '../db/schema'
+import { CATEGORY_ORDER, categoryLabel, REPORT_FORMATS } from './report-formats'
 
 /**
  * Shape matching the dashboard table columns: Date, Long, Short, Change Long,
- * Change Short, Net, Net % of OI. Always sourced from the Non-Commercial
- * fields — Commercial net is stored but not surfaced in v1.
+ * Change Short, Net, Net % of OI. Always sourced from the row's primary
+ * (speculator-equivalent) trader group — Non-Commercial for Legacy, Leveraged
+ * Funds for TFF — so consumers never depend on which report format it is.
  */
 export interface CotTableRow {
   date: string
@@ -17,10 +19,22 @@ export interface CotTableRow {
 }
 
 export interface CotInstrumentSummary {
+  /** Raw CFTC market name. Kept for backwards compatibility; prefer displayName. */
   instrument: string
+  displayName: string
   contractCode: string
   exchange: string
+  category: InstrumentCategory
+  categoryLabel: string
+  reportFormat: ReportFormat
+  reportFormatLabel: string
+  /** What this report format calls the speculator-equivalent group, e.g. "Non-Commercial" or "Leveraged Funds". */
+  primaryCategoryLabel: string
+  /** Shown on first load; the rest are behind "Load more" / search. */
+  featured: boolean
   asOfDate: string
+  long: number
+  short: number
   net: number
   netPctOi: number
 }
@@ -28,48 +42,96 @@ export interface CotInstrumentSummary {
 function toTableRow(row: CotReportRow): CotTableRow {
   return {
     date: row.as_of_date,
-    long: row.noncommercial_long,
-    short: row.noncommercial_short,
-    changeLong: row.change_noncommercial_long,
-    changeShort: row.change_noncommercial_short,
-    net: row.noncommercial_net,
-    netPctOi: row.noncommercial_net_pct_oi
+    long: row.primary_long,
+    short: row.primary_short,
+    changeLong: row.change_primary_long,
+    changeShort: row.change_primary_short,
+    net: row.primary_net,
+    netPctOi: row.primary_net_pct_oi
   }
 }
 
-function toInstrumentSummary(row: CotReportRow): CotInstrumentSummary {
+interface InstrumentSummaryRow {
+  contract_code: string
+  display_name: string
+  exchange: string
+  category: InstrumentCategory
+  report_format: ReportFormat
+  primary_category_label: string
+  featured: boolean
+  instrument: string
+  as_of_date: string
+  primary_long: number
+  primary_short: number
+  primary_net: number
+  primary_net_pct_oi: number
+}
+
+function toInstrumentSummary(row: InstrumentSummaryRow): CotInstrumentSummary {
   return {
     instrument: row.instrument,
+    displayName: row.display_name,
     contractCode: row.contract_code,
     exchange: row.exchange,
+    category: row.category,
+    categoryLabel: categoryLabel(row.category),
+    reportFormat: row.report_format,
+    reportFormatLabel: REPORT_FORMATS[row.report_format].label,
+    primaryCategoryLabel: row.primary_category_label,
+    featured: row.featured,
     asOfDate: row.as_of_date,
-    net: row.noncommercial_net,
-    netPctOi: row.noncommercial_net_pct_oi
+    long: row.primary_long,
+    short: row.primary_short,
+    net: row.primary_net,
+    netPctOi: row.primary_net_pct_oi
   }
 }
 
-/** Latest reported week per instrument, for a dashboard overview list. */
-export async function listLatestByInstrument(): Promise<CotInstrumentSummary[]> {
-  const { rows } = await pool.query<CotReportRow>(
-    `SELECT DISTINCT ON (contract_code) *
-     FROM cot_reports
-     ORDER BY contract_code, as_of_date DESC`
+// Which stored report_type belongs to an instrument's format, built from the
+// REPORT_FORMATS constants (never from user input).
+const REPORT_TYPE_FOR_FORMAT_SQL = `CASE i.report_format ${Object.entries(REPORT_FORMATS)
+  .map(([format, { reportType }]) => `WHEN '${format}' THEN '${reportType}'`)
+  .join(' ')} END`
+
+/**
+ * Registry-driven: an instrument appears only if it is `active` AND has at
+ * least one stored week (the inner join), so a market is never listed before
+ * its data is real. Add a market by inserting a registry row — no code change.
+ */
+async function queryLatestSummaries(contractCode?: string): Promise<CotInstrumentSummary[]> {
+  const { rows } = await pool.query<InstrumentSummaryRow>(
+    `SELECT i.contract_code, i.display_name, i.exchange, i.category, i.report_format, i.primary_category_label, i.featured,
+            r.instrument, r.as_of_date, r.primary_long, r.primary_short, r.primary_net, r.primary_net_pct_oi
+     FROM instruments i
+     JOIN LATERAL (
+       SELECT instrument, as_of_date, primary_long, primary_short, primary_net, primary_net_pct_oi
+       FROM cot_reports
+       WHERE contract_code = i.contract_code AND report_type = ${REPORT_TYPE_FOR_FORMAT_SQL}
+       ORDER BY as_of_date DESC
+       LIMIT 1
+     ) r ON true
+     WHERE i.active AND ($1::text IS NULL OR i.contract_code = $1)`,
+    [contractCode ?? null]
   )
 
-  return rows.map(toInstrumentSummary)
+  // By the app's category order, then name — in code rather than SQL, since alphabetical isn't the display order.
+  return rows
+    .map(toInstrumentSummary)
+    .sort((a, b) =>
+      CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) ||
+      a.displayName.localeCompare(b.displayName)
+    )
 }
 
-/** Latest reported week for one instrument, or null if the contract code is unknown. */
-export async function getLatestSummary(contractCode: string): Promise<CotInstrumentSummary | null> {
-  const { rows } = await pool.query<CotReportRow>(
-    `SELECT * FROM cot_reports
-     WHERE contract_code = $1
-     ORDER BY as_of_date DESC
-     LIMIT 1`,
-    [contractCode]
-  )
+/** Latest reported week per active instrument, for a dashboard overview list. */
+export async function listLatestByInstrument(): Promise<CotInstrumentSummary[]> {
+  return queryLatestSummaries()
+}
 
-  return rows.length === 0 ? null : toInstrumentSummary(rows[0])
+/** Latest reported week for one active instrument, or null if it is unknown, inactive, or has no data. */
+export async function getLatestSummary(contractCode: string): Promise<CotInstrumentSummary | null> {
+  const [summary] = await queryLatestSummaries(contractCode)
+  return summary ?? null
 }
 
 export const DEFAULT_HISTORY_PAGE_SIZE = 52 // ~1 year of weekly reports
@@ -120,104 +182,69 @@ export async function getHistoryByContractCode(
   return { rows: tableRows, nextCursor }
 }
 
+// Every stored column except the generated ones (id, created_at), in insert order.
+const UPSERT_COLUMNS = [
+  'instrument', 'contract_market_name', 'exchange', 'contract_code', 'report_type', 'as_of_date',
+  'open_interest', 'change_open_interest', 'total_traders',
+  'primary_long', 'primary_short', 'primary_net', 'primary_net_pct_oi',
+  'change_primary_long', 'change_primary_short', 'change_primary_net',
+  'noncommercial_long', 'noncommercial_short', 'noncommercial_spreads',
+  'commercial_long', 'commercial_short', 'total_long', 'total_short',
+  'nonreportable_long', 'nonreportable_short',
+  'change_noncommercial_long', 'change_noncommercial_short', 'change_noncommercial_spreads',
+  'change_commercial_long', 'change_commercial_short', 'change_total_long', 'change_total_short',
+  'change_nonreportable_long', 'change_nonreportable_short',
+  'pct_noncommercial_long', 'pct_noncommercial_short', 'pct_noncommercial_spreads',
+  'pct_commercial_long', 'pct_commercial_short',
+  'traders_noncommercial_long', 'traders_noncommercial_short', 'traders_noncommercial_spreads',
+  'traders_commercial_long', 'traders_commercial_short',
+  'noncommercial_net', 'noncommercial_net_pct_oi', 'commercial_net', 'commercial_net_pct_oi',
+  'change_noncommercial_net', 'change_commercial_net'
+] as const satisfies readonly (keyof CotReportRow)[]
+
+const CONFLICT_COLUMNS: readonly (typeof UPSERT_COLUMNS)[number][] = ['contract_code', 'report_type', 'as_of_date']
+
+// 200 rows x 50 columns = 10k bind parameters, well under Postgres' 65,535 limit.
+const UPSERT_BATCH_SIZE = 200
+
 /**
  * Inserts parsed CFTC report rows, or overwrites the existing row for weeks
  * already stored (re-running ingestion for an already-loaded week updates it
- * in place rather than duplicating it).
+ * in place rather than duplicating it). Works for every report format:
+ * columns a format doesn't have are stored as NULL.
  */
 export async function upsertReports(rows: CotReportRow[]): Promise<number> {
+  // ON CONFLICT DO UPDATE errors if one statement touches the same row twice,
+  // so collapse duplicate keys first (last one wins).
+  const unique = new Map<string, CotReportRow>()
   for (const row of rows) {
-    await pool.query(
-      `INSERT INTO cot_reports (
-        instrument, contract_market_name, exchange, contract_code, report_type, as_of_date,
-        open_interest, change_open_interest,
-        noncommercial_long, noncommercial_short, noncommercial_spreads,
-        commercial_long, commercial_short, total_long, total_short,
-        nonreportable_long, nonreportable_short,
-        change_noncommercial_long, change_noncommercial_short, change_noncommercial_spreads,
-        change_commercial_long, change_commercial_short, change_total_long, change_total_short,
-        change_nonreportable_long, change_nonreportable_short,
-        pct_noncommercial_long, pct_noncommercial_short, pct_noncommercial_spreads,
-        pct_commercial_long, pct_commercial_short,
-        total_traders, traders_noncommercial_long, traders_noncommercial_short, traders_noncommercial_spreads,
-        traders_commercial_long, traders_commercial_short,
-        noncommercial_net, noncommercial_net_pct_oi, commercial_net, commercial_net_pct_oi,
-        change_noncommercial_net, change_commercial_net
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,
-        $7,$8,
-        $9,$10,$11,
-        $12,$13,$14,$15,
-        $16,$17,
-        $18,$19,$20,
-        $21,$22,$23,$24,
-        $25,$26,
-        $27,$28,$29,
-        $30,$31,
-        $32,$33,$34,$35,
-        $36,$37,
-        $38,$39,$40,$41,
-        $42,$43
+    unique.set(`${row.contract_code}|${row.report_type}|${row.as_of_date}`, row)
+  }
+  const deduped = [...unique.values()]
+
+  const updateSet = UPSERT_COLUMNS
+    .filter((column) => !CONFLICT_COLUMNS.includes(column))
+    .map((column) => `${column} = EXCLUDED.${column}`)
+    .join(', ')
+
+  for (let offset = 0; offset < deduped.length; offset += UPSERT_BATCH_SIZE) {
+    const batch = deduped.slice(offset, offset + UPSERT_BATCH_SIZE)
+
+    const placeholders = batch
+      .map((_, rowIndex) =>
+        `(${UPSERT_COLUMNS.map((_, colIndex) => `$${rowIndex * UPSERT_COLUMNS.length + colIndex + 1}`).join(', ')})`
       )
-      ON CONFLICT (contract_code, report_type, as_of_date) DO UPDATE SET
-        instrument = EXCLUDED.instrument,
-        contract_market_name = EXCLUDED.contract_market_name,
-        exchange = EXCLUDED.exchange,
-        open_interest = EXCLUDED.open_interest,
-        change_open_interest = EXCLUDED.change_open_interest,
-        noncommercial_long = EXCLUDED.noncommercial_long,
-        noncommercial_short = EXCLUDED.noncommercial_short,
-        noncommercial_spreads = EXCLUDED.noncommercial_spreads,
-        commercial_long = EXCLUDED.commercial_long,
-        commercial_short = EXCLUDED.commercial_short,
-        total_long = EXCLUDED.total_long,
-        total_short = EXCLUDED.total_short,
-        nonreportable_long = EXCLUDED.nonreportable_long,
-        nonreportable_short = EXCLUDED.nonreportable_short,
-        change_noncommercial_long = EXCLUDED.change_noncommercial_long,
-        change_noncommercial_short = EXCLUDED.change_noncommercial_short,
-        change_noncommercial_spreads = EXCLUDED.change_noncommercial_spreads,
-        change_commercial_long = EXCLUDED.change_commercial_long,
-        change_commercial_short = EXCLUDED.change_commercial_short,
-        change_total_long = EXCLUDED.change_total_long,
-        change_total_short = EXCLUDED.change_total_short,
-        change_nonreportable_long = EXCLUDED.change_nonreportable_long,
-        change_nonreportable_short = EXCLUDED.change_nonreportable_short,
-        pct_noncommercial_long = EXCLUDED.pct_noncommercial_long,
-        pct_noncommercial_short = EXCLUDED.pct_noncommercial_short,
-        pct_noncommercial_spreads = EXCLUDED.pct_noncommercial_spreads,
-        pct_commercial_long = EXCLUDED.pct_commercial_long,
-        pct_commercial_short = EXCLUDED.pct_commercial_short,
-        total_traders = EXCLUDED.total_traders,
-        traders_noncommercial_long = EXCLUDED.traders_noncommercial_long,
-        traders_noncommercial_short = EXCLUDED.traders_noncommercial_short,
-        traders_noncommercial_spreads = EXCLUDED.traders_noncommercial_spreads,
-        traders_commercial_long = EXCLUDED.traders_commercial_long,
-        traders_commercial_short = EXCLUDED.traders_commercial_short,
-        noncommercial_net = EXCLUDED.noncommercial_net,
-        noncommercial_net_pct_oi = EXCLUDED.noncommercial_net_pct_oi,
-        commercial_net = EXCLUDED.commercial_net,
-        commercial_net_pct_oi = EXCLUDED.commercial_net_pct_oi,
-        change_noncommercial_net = EXCLUDED.change_noncommercial_net,
-        change_commercial_net = EXCLUDED.change_commercial_net`,
-      [
-        row.instrument, row.contract_market_name, row.exchange, row.contract_code, row.report_type, row.as_of_date,
-        row.open_interest, row.change_open_interest,
-        row.noncommercial_long, row.noncommercial_short, row.noncommercial_spreads,
-        row.commercial_long, row.commercial_short, row.total_long, row.total_short,
-        row.nonreportable_long, row.nonreportable_short,
-        row.change_noncommercial_long, row.change_noncommercial_short, row.change_noncommercial_spreads,
-        row.change_commercial_long, row.change_commercial_short, row.change_total_long, row.change_total_short,
-        row.change_nonreportable_long, row.change_nonreportable_short,
-        row.pct_noncommercial_long, row.pct_noncommercial_short, row.pct_noncommercial_spreads,
-        row.pct_commercial_long, row.pct_commercial_short,
-        row.total_traders, row.traders_noncommercial_long, row.traders_noncommercial_short, row.traders_noncommercial_spreads,
-        row.traders_commercial_long, row.traders_commercial_short,
-        row.noncommercial_net, row.noncommercial_net_pct_oi, row.commercial_net, row.commercial_net_pct_oi,
-        row.change_noncommercial_net, row.change_commercial_net
-      ]
+      .join(', ')
+
+    const values = batch.flatMap((row) => UPSERT_COLUMNS.map((column) => row[column] ?? null))
+
+    await pool.query(
+      `INSERT INTO cot_reports (${UPSERT_COLUMNS.join(', ')})
+       VALUES ${placeholders}
+       ON CONFLICT (${CONFLICT_COLUMNS.join(', ')}) DO UPDATE SET ${updateSet}`,
+      values
     )
   }
 
-  return rows.length
+  return deduped.length
 }

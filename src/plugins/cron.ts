@@ -21,7 +21,7 @@ export default fp(async (fastify) => {
 
         for (const summary of summaries) {
           fastify.log.info(
-            { report: summary.reportName, instrumentsIngested: summary.instrumentsIngested },
+            { report: summary.reportName, rowsUpserted: summary.rowsUpserted, missingContracts: summary.missingContracts },
             'Ingested CFTC report'
           )
         }

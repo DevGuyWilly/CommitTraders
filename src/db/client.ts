@@ -1,4 +1,11 @@
-import 'dotenv/config'
+import { config } from 'dotenv'
+import { join } from 'node:path'
+
+// dotenv's default lookup uses process.cwd(), which is `dist/` when Fastify
+// CLI starts the server. Anchor to __dirname so .env is always found two
+// levels up from dist/db/ regardless of working directory.
+config({ path: join(__dirname, '..', '..', '.env') })
+
 import { Pool, types, type QueryResultRow } from 'pg'
 
 // Return DATE as the raw 'YYYY-MM-DD' string instead of a local-midnight Date

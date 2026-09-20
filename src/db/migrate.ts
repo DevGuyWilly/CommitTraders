@@ -3,7 +3,7 @@ import { closePool } from './client'
 
 migrate()
   .then(() => {
-    console.log('Migration complete: cot_reports table is up to date')
+    console.log('Migration complete: cot_reports and instruments tables are up to date')
   })
   .catch((err) => {
     console.error('Migration failed:', err)

@@ -1,0 +1,19 @@
+GOLD - COMMODITY EXCHANGE INC.                                       Code-088691
+FUTURES ONLY POSITIONS AS OF 09/15/26                         |
+--------------------------------------------------------------| NONREPORTABLE
+      NON-COMMERCIAL      |   COMMERCIAL    |      TOTAL      |   POSITIONS
+--------------------------|-----------------|-----------------|-----------------
+  LONG  | SHORT  |SPREADS |  LONG  | SHORT  |  LONG  | SHORT  |  LONG  | SHORT
+--------------------------------------------------------------------------------
+(CONTRACTS OF 100 TROY OUNCES)                       OPEN INTEREST:      409,899
+COMMITMENTS
+ 258,059   27,721   47,963   56,417  318,138  362,439  393,822   47,460   16,077
+
+CHANGES FROM 09/08/26 (CHANGE IN OPEN INTEREST:     -1,328)
+  -2,948   -1,326    4,700    2,014   -6,539    3,766   -3,165   -5,094    1,837
+
+PERCENT OF OPEN INTEREST FOR EACH CATEGORY OF TRADERS
+    63.0      6.8     11.7     13.8     77.6     88.4     96.1     11.6      3.9
+
+NUMBER OF TRADERS IN EACH CATEGORY (TOTAL TRADERS:      296)
+     179       47       70       54       46      256      142

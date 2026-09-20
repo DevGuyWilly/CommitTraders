@@ -22,6 +22,15 @@ const fixtureRow: CotReportRow = {
   open_interest: 100000,
   change_open_interest: 1000,
 
+  // Legacy: the primary (speculator-equivalent) group is Non-Commercial.
+  primary_long: 60000,
+  primary_short: 10000,
+  primary_net: 50000,
+  primary_net_pct_oi: 50,
+  change_primary_long: 500,
+  change_primary_short: -200,
+  change_primary_net: 700,
+
   noncommercial_long: 60000,
   noncommercial_short: 10000,
   noncommercial_spreads: 5000,

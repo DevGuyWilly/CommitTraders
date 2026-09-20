@@ -8,6 +8,8 @@ import styles from './TrendChart.module.css'
 export interface TrendChartProps {
   rows: CotTableRow[]
   loading?: boolean
+  /** The instrument's speculator-equivalent group (the API's primaryCategoryLabel), shown beside "Weekly". */
+  groupLabel?: string
 }
 
 function ChartSkeleton() {
@@ -67,11 +69,11 @@ function makeDotRenderer(lastIndex: number, color: string) {
   }
 }
 
-export function TrendChart({ rows, loading = false }: TrendChartProps) {
+export function TrendChart({ rows, loading = false, groupLabel }: TrendChartProps) {
   const header = (
     <div className={styles.header}>
       <h3 className={styles.title}>Net % of Open Interest</h3>
-      <span className={styles.meta}>Non-Commercial &middot; Weekly</span>
+      <span className={styles.meta}>{groupLabel ? `${groupLabel} · Weekly` : 'Weekly'}</span>
     </div>
   )
 

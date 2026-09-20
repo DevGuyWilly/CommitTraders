@@ -29,14 +29,19 @@ function TrendMark() {
   )
 }
 
-export function NavBar() {
+export interface NavBarProps {
+  /** The report the current view is built on (the API's reportFormatLabel); omitted while unknown. */
+  meta?: string
+}
+
+export function NavBar({ meta }: NavBarProps) {
   return (
     <header className={styles.nav}>
       <Link to="/" className={styles.wordmark}>
         <TrendMark />
         <span>CommitTraders</span>
       </Link>
-      <span className={styles.meta}>CFTC Legacy Report &middot; Futures Only</span>
+      {meta && <span className={styles.meta}>{meta}</span>}
     </header>
   )
 }
