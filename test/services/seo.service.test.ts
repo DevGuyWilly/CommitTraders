@@ -18,20 +18,42 @@ const TEMPLATE = '<html><head><!--app-head--></head><body><div id="root"><!--app
 
 const gold: CotInstrumentSummary = {
   instrument: 'GOLD',
+  displayName: 'Gold',
   contractCode: '088691',
-  exchange: 'COMMODITY EXCHANGE INC.',
+  exchange: 'COMEX',
+  category: 'metals',
+  categoryLabel: 'Metals',
+  reportFormat: 'legacy',
+  reportFormatLabel: 'CFTC Legacy Report · Futures Only',
+  primaryCategoryLabel: 'Non-Commercial',
   asOfDate: '2026-09-15',
   net: 230338,
   netPctOi: 56.19
 }
 
 const silver: CotInstrumentSummary = {
+  ...gold,
   instrument: 'SILVER',
+  displayName: 'Silver',
   contractCode: '084691',
-  exchange: 'COMMODITY EXCHANGE INC.',
   asOfDate: '2026-09-08',
   net: -1200,
   netPctOi: -4.5
+}
+
+const eurUsd: CotInstrumentSummary = {
+  instrument: 'EURO FX',
+  displayName: 'EUR/USD',
+  contractCode: '099741',
+  exchange: 'CME',
+  category: 'financials',
+  categoryLabel: 'Financials',
+  reportFormat: 'tff',
+  reportFormatLabel: 'CFTC Traders in Financial Futures (TFF) · Futures Only',
+  primaryCategoryLabel: 'Leveraged Funds',
+  asOfDate: '2026-09-15',
+  net: -28156,
+  netPctOi: -3.06
 }
 
 const goldRows: CotTableRow[] = [
@@ -78,22 +100,42 @@ test('instrument page: net long wording, canonical, breadcrumb', () => {
   const html = renderPage(TEMPLATE, buildInstrumentPage(gold, goldRows, SITE), SITE)
 
   assert.ok(html.includes('<title>Gold COT Report: Speculator Net Positioning | CommitTraders</title>'))
-  assert.ok(html.includes('speculators were net long 230,338 contracts (56.19% of open interest) as of Sep 15, 2026'))
+  assert.ok(html.includes('Non-Commercial were net long 230,338 contracts (56.19% of open interest) as of Sep 15, 2026'))
   assert.ok(html.includes(`<link rel="canonical" href="${SITE}/instruments/088691" />`))
   assert.ok(html.includes('"@type":"BreadcrumbList"'))
   assert.ok(html.includes('258,059 long, 27,721 short'))
 })
 
+test('overview page groups instruments by category, driven by the data rather than fixed copy', () => {
+  const html = renderPage(TEMPLATE, buildOverviewPage([eurUsd, silver, gold], SITE), SITE)
+
+  assert.ok(html.includes('<h1>Commitment of Traders (COT) Report: Metals and Financials</h1>'), 'display order, not input or alphabetical order')
+  assert.ok(html.includes('<h2>Metals</h2>') && html.includes('<h2>Financials</h2>'))
+  assert.ok(html.indexOf('<h2>Metals</h2>') < html.indexOf('<h2>Financials</h2>'))
+  assert.ok(html.includes('<a href="/instruments/099741">EUR/USD</a>'))
+  assert.ok(html.includes('<td>Leveraged Funds</td>'))
+  assert.ok(html.includes('across Metals and Financials markets'))
+})
+
+test('instrument page for a TFF market uses its own trader-group label and report format', () => {
+  const html = renderPage(TEMPLATE, buildInstrumentPage(eurUsd, [], SITE), SITE)
+
+  assert.ok(html.includes('<h1>EUR/USD &mdash; Leveraged Funds Net Positioning</h1>'))
+  assert.ok(html.includes('Leveraged Funds were net short 28,156 contracts (3.06% of open interest)'))
+  assert.ok(html.includes('CFTC Traders in Financial Futures (TFF) · Futures Only'))
+  assert.ok(!html.includes('Non-Commercial'))
+})
+
 test('instrument page: net short and flat wording', () => {
   const short = renderPage(TEMPLATE, buildInstrumentPage(silver, [], SITE), SITE)
-  assert.ok(short.includes('speculators were net short 1,200 contracts (4.50% of open interest)'))
+  assert.ok(short.includes('Non-Commercial were net short 1,200 contracts (4.50% of open interest)'))
 
   const flat = renderPage(TEMPLATE, buildInstrumentPage({ ...silver, net: 0, netPctOi: 0 }, [], SITE), SITE)
-  assert.ok(flat.includes('speculators were flat (no net position)'))
+  assert.ok(flat.includes('Non-Commercial were flat (no net position)'))
 })
 
 test('instrument page: hostile instrument text cannot break out of HTML or JSON-LD', () => {
-  const hostile = { ...gold, instrument: '</script><img src=x onerror=alert(1)>' }
+  const hostile = { ...gold, displayName: '</script><img src=x onerror=alert(1)>' }
   const html = renderPage(TEMPLATE, buildInstrumentPage(hostile, [], SITE), SITE)
 
   assert.ok(!html.includes('<img src=x'))

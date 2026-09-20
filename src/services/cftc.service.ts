@@ -1,4 +1,13 @@
 import type { CotReportRow, ReportType } from '../db/schema'
+import { fetchCftcText } from './cftc-http'
+import { netPctOi } from './cot-math'
+
+/**
+ * Legacy (Non-Commercial / Commercial) futures-only report — the source for
+ * every instrument whose registry report_format is 'legacy'. The keys are
+ * report pages; which contracts on a page get stored is decided by the
+ * instruments registry, not by this list.
+ */
 
 export const CFTC_LEGACY_REPORT_URLS: Record<string, string> = {
   metals: 'https://www.cftc.gov/dea/futures/deacmxsf.htm'
@@ -10,10 +19,16 @@ const OPEN_INTEREST_RE = /OPEN INTEREST:\s*(-?[\d,]+)/
 const CHANGE_OPEN_INTEREST_RE = /CHANGE IN OPEN INTEREST:\s*(-?[\d,]+)/
 const TOTAL_TRADERS_RE = /TOTAL TRADERS:\s*(-?[\d,]+)/
 
-type ParsedCotSection = Omit<
-  CotReportRow,
-  'id' | 'created_at' | 'noncommercial_net' | 'noncommercial_net_pct_oi' | 'commercial_net' | 'commercial_net_pct_oi' | 'change_noncommercial_net' | 'change_commercial_net'
->
+// Everything the Legacy parser reads straight off the report; the rest is derived in withDerivedFields.
+type DerivedKeys =
+  | 'id' | 'created_at'
+  | 'primary_long' | 'primary_short' | 'primary_net' | 'primary_net_pct_oi'
+  | 'change_primary_long' | 'change_primary_short' | 'change_primary_net'
+  | 'noncommercial_net' | 'noncommercial_net_pct_oi' | 'commercial_net' | 'commercial_net_pct_oi'
+  | 'change_noncommercial_net' | 'change_commercial_net'
+
+// A parsed Legacy section always has every Legacy column (they're only null on TFF rows).
+type ParsedCotSection = Omit<{ [K in keyof CotReportRow]-?: NonNullable<CotReportRow[K]> }, DerivedKeys>
 
 function parseNumberList(line: string): number[] {
   return line
@@ -136,20 +151,8 @@ function splitIntoSections(preText: string): string[] {
   return sections
 }
 
-// Node's built-in fetch (undici) gets TLS-fingerprinted and blocked by
-// Cloudflare regardless of headers sent; got-scraping mimics a real
-// browser's TLS handshake and header set to get through.
 async function fetchReportText(url: string): Promise<string> {
-  // got-scraping ships ESM-only; this project compiles to CommonJS, so it
-  // must be loaded via dynamic import rather than a static one.
-  const { gotScraping } = await import('got-scraping')
-  const response = await gotScraping.get(url)
-
-  if (response.statusCode >= 400) {
-    throw new Error(`Failed to fetch CFTC report from ${url}: HTTP ${response.statusCode}`)
-  }
-
-  const html = response.body
+  const html = await fetchCftcText(url)
   const preMatch = html.match(/<pre>([\s\S]*?)<\/pre>/i)
 
   if (!preMatch) {
@@ -162,33 +165,46 @@ async function fetchReportText(url: string): Promise<string> {
     .replace(/&gt;/g, '>')
 }
 
-/** net = long - short; change_net = change_long - change_short (algebraically equivalent to diffing net week-over-week). */
+/**
+ * net = long - short; change_net = change_long - change_short (algebraically
+ * equivalent to diffing net week-over-week). For Legacy, the primary
+ * (speculator-equivalent) group is Non-Commercial.
+ */
 function withDerivedFields(parsed: ParsedCotSection): CotReportRow {
   const noncommercial_net = parsed.noncommercial_long - parsed.noncommercial_short
   const commercial_net = parsed.commercial_long - parsed.commercial_short
   const change_noncommercial_net = parsed.change_noncommercial_long - parsed.change_noncommercial_short
   const change_commercial_net = parsed.change_commercial_long - parsed.change_commercial_short
 
-  const netPctOi = (net: number): number => Math.round((net / parsed.open_interest) * 100 * 100) / 100
+  const noncommercial_net_pct_oi = netPctOi(noncommercial_net, parsed.open_interest)
 
   return {
     ...parsed,
+    primary_long: parsed.noncommercial_long,
+    primary_short: parsed.noncommercial_short,
+    primary_net: noncommercial_net,
+    primary_net_pct_oi: noncommercial_net_pct_oi,
+    change_primary_long: parsed.change_noncommercial_long,
+    change_primary_short: parsed.change_noncommercial_short,
+    change_primary_net: change_noncommercial_net,
     noncommercial_net,
-    noncommercial_net_pct_oi: netPctOi(noncommercial_net),
+    noncommercial_net_pct_oi,
     commercial_net,
-    commercial_net_pct_oi: netPctOi(commercial_net),
+    commercial_net_pct_oi: netPctOi(commercial_net, parsed.open_interest),
     change_noncommercial_net,
     change_commercial_net
   }
 }
 
-/** Fetches a CFTC Legacy Futures-Only report page and parses every instrument section in it. */
-export async function fetchAndParseLegacyReport(url: string): Promise<CotReportRow[]> {
-  const preText = await fetchReportText(url)
-  const sections = splitIntoSections(preText)
-
-  return sections
+/** Parses every instrument section of a Legacy report's text (the contents of its <pre> block). */
+export function parseLegacyReportText(preText: string): CotReportRow[] {
+  return splitIntoSections(preText)
     .map(parseSection)
     .filter((row): row is ParsedCotSection => row !== null)
     .map(withDerivedFields)
+}
+
+/** Fetches a CFTC Legacy Futures-Only report page and parses every instrument section in it. */
+export async function fetchAndParseLegacyReport(url: string): Promise<CotReportRow[]> {
+  return parseLegacyReportText(await fetchReportText(url))
 }

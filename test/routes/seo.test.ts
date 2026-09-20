@@ -31,7 +31,7 @@ test('SEO routes', async (t) => {
     assert.strictEqual(res.statusCode, 200)
     assert.match(res.payload, /<title>Commitment of Traders \(COT\) Report Dashboard/)
     assert.match(res.payload, /<link rel="canonical" href="[^"]+\/" \/>/)
-    assert.match(res.payload, /<h1>Commitment of Traders \(COT\) Report: Metals<\/h1>/)
+    assert.match(res.payload, /<h1>Commitment of Traders \(COT\) Report: [^<]+<\/h1>/)
     assert.ok(!res.payload.includes('<!--app-head-->') && !res.payload.includes('<!--app-html-->'))
   })
 

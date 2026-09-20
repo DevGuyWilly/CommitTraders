@@ -99,6 +99,19 @@ The app is a client-rendered SPA, so the server fills in per-page `<head>` tags 
 
 ---
 
+## 6. Adding Financials to an existing deployment
+
+The Financials (TFF) markets ship switched off. Roll them out in this order — the migration is additive, but it does write to the production database, so run it deliberately:
+
+1. `npm run db:migrate` — adds the `instruments` registry and the format-neutral `primary_*` columns (backfilled from the existing Non-Commercial columns; nothing is dropped or rewritten). **Run it before deploying the new code**, which reads those columns.
+2. Deploy the new code.
+3. `npm run cftc:backfill` — loads TFF history from 2025 to present for the registered financials.
+4. Check the data, then turn markets on one at a time: `npm run instruments:activate -- 099741` (EUR/USD), `097741` (Japanese Yen), `043602` (10-Year T-Note), `13874A` (S&P 500 E-mini), `1170E1` (VIX). It refuses any contract with no stored data.
+
+The weekly Render Cron Job (`node dist/jobs/ingest-cftc.js`) needs no change — it now ingests both reports.
+
+---
+
 ## Summary Checklist
 
 - [ ] Supabase PostgreSQL database created.
