@@ -19,6 +19,9 @@ export const SITE_NAME = 'CommitTraders'
 const HEAD_MARKER = '<!--app-head-->'
 const BODY_MARKER = '<!--app-html-->'
 
+/** The element around the crawlable snapshot; frontend/index.html hides it by this id. */
+export const SNAPSHOT_ID = 'seo-snapshot'
+
 export interface PageSeo {
   title: string
   description?: string
@@ -159,9 +162,13 @@ export function renderPage(template: string, page: Page, siteUrl: string): strin
 
   // Replacer functions, not strings: page content can contain "$&" or "$1",
   // which String.replace would otherwise interpret.
+  //
+  // The snapshot is wrapped so frontend/index.html can keep it out of sight:
+  // it is for crawlers, and showing it (unstyled) until React replaces it
+  // reads as a flash of an unstyled page.
   return template
     .replace(HEAD_MARKER, () => renderHead(page.seo, siteUrl))
-    .replace(BODY_MARKER, () => page.body)
+    .replace(BODY_MARKER, () => `<div id="${SNAPSHOT_ID}">${page.body}</div>`)
 }
 
 export function sendPage(reply: FastifyReply, statusCode: number, page: Page, siteUrl: string): FastifyReply {

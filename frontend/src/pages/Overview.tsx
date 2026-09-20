@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { NavBar } from '../components/NavBar'
 import { Footer } from '../components/Footer'
@@ -15,6 +15,7 @@ import { useOverviewCards } from '../hooks/useOverviewCards'
 import { categoryTabs, distinct, marketsSearch } from '../lib/categories'
 import { formatDate } from '../lib/format'
 import { matchesQuery, searchItems } from '../lib/search'
+import { hideSplash } from '../lib/splash'
 import styles from './Overview.module.css'
 
 // Kept in step with OVERVIEW_TITLE in src/services/seo.service.ts.
@@ -26,6 +27,11 @@ const PAGE_SIZE = 12
 export function Overview() {
   const { cards, loading, error } = useOverviewCards()
   useDocumentMeta(PAGE_TITLE)
+
+  // The splash covers the page until the first data (or error) is in, so people don't see an empty grid fill in.
+  useEffect(() => {
+    if (!loading) hideSplash()
+  }, [loading])
 
   // Both the category and the search text live in the URL (?category=financials&q=yen),
   // so a view is linkable and back/forward work. An unknown category falls back to the first.

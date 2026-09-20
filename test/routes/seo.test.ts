@@ -31,8 +31,25 @@ test('SEO routes', async (t) => {
     assert.strictEqual(res.statusCode, 200)
     assert.match(res.payload, /<title>Commitment of Traders \(COT\) Report Dashboard/)
     assert.match(res.payload, /<link rel="canonical" href="[^"]+\/" \/>/)
-    assert.match(res.payload, /<h1>Commitment of Traders \(COT\) Report: [^<]+<\/h1>/)
+    // The ": Metals …" suffix only appears once instruments are live, so an empty database must pass too.
+    assert.match(res.payload, /<h1>Commitment of Traders \(COT\) Report(: [^<]+)?<\/h1>/)
     assert.ok(!res.payload.includes('<!--app-head-->') && !res.payload.includes('<!--app-html-->'))
+  })
+
+  await t.test('the crawler snapshot is hidden from people (no flash of an unstyled page) but stays in the HTML', async () => {
+    const res = await app.inject({ url: '/' })
+    assert.match(res.payload, /<div id="root"><div id="seo-snapshot">/, 'snapshot is present for crawlers')
+    // The build minifies the inline <style> (no space after the colon, properties reordered).
+    assert.match(res.payload, /#seo-snapshot\s*\{[^}]*clip:\s*rect\(0 0 0 0\)/, 'and hidden by the page styles')
+    assert.match(res.payload, /<noscript>\s*<style>[^<]*#seo-snapshot\{[^}]*position:static/, 'but shown again when JavaScript is off')
+  })
+
+  await t.test('the splash screen is in the page, hidden without JavaScript, and stops covering the page on its own', async () => {
+    const res = await app.inject({ url: '/' })
+    assert.match(res.payload, /<div id="splash" aria-hidden="true">/, 'present, and ignored by screen readers')
+    assert.match(res.payload, /<noscript>\s*<style>#splash\{display:none\}/, 'not left covering the page when JavaScript is off')
+    assert.match(res.payload, /@keyframes splash-failsafe/, 'gives up by itself if the app never starts')
+    assert.match(res.payload, /prefers-reduced-motion:\s*reduce/, 'respects reduced motion')
   })
 
   await t.test('GET /instruments/:contractCode returns a real 404 for an unknown contract', async () => {

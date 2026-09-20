@@ -76,7 +76,7 @@ test('renderPage fills both placeholders', () => {
   assert.ok(!html.includes('<!--app-head-->'))
   assert.ok(!html.includes('<!--app-html-->'))
   assert.match(html, /<title>Commitment of Traders \(COT\) Report Dashboard \| CommitTraders<\/title>/)
-  assert.match(html, /<div id="root">\s*<main>/)
+  assert.match(html, /<div id="root"><div id="seo-snapshot">\s*<main>/)
 })
 
 test('renderPage does not interpret "$" sequences in page content', () => {

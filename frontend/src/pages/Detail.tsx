@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { NavBar } from '../components/NavBar'
 import { Footer } from '../components/Footer'
@@ -10,6 +11,7 @@ import { useCoT } from '../hooks/useCoT'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useInstrumentList } from '../hooks/useInstrumentList'
 import { formatSigned, numberFormatter, pctFormatter } from '../lib/format'
+import { hideSplash } from '../lib/splash'
 import styles from './Detail.module.css'
 
 function renderNetPctOi(value: number) {
@@ -25,8 +27,13 @@ function renderNetPctOi(value: number) {
 export function Detail() {
   const { contractCode = '' } = useParams<{ contractCode: string }>()
   const navigate = useNavigate()
-  const { instruments } = useInstrumentList()
+  const { instruments, loading: instrumentsLoading } = useInstrumentList()
   const { rows, loading, error, loadMore, hasMore } = useCoT(contractCode)
+
+  // Hold the splash until the instrument list is in, so the title and labels don't pop in afterwards.
+  useEffect(() => {
+    if (!instrumentsLoading) hideSplash()
+  }, [instrumentsLoading])
 
   const current = instruments.find((inst) => inst.contractCode === contractCode)
   const displayName = current?.displayName ?? contractCode
