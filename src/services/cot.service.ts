@@ -30,7 +30,11 @@ export interface CotInstrumentSummary {
   reportFormatLabel: string
   /** What this report format calls the speculator-equivalent group, e.g. "Non-Commercial" or "Leveraged Funds". */
   primaryCategoryLabel: string
+  /** Shown on first load; the rest are behind "Load more" / search. */
+  featured: boolean
   asOfDate: string
+  long: number
+  short: number
   net: number
   netPctOi: number
 }
@@ -54,8 +58,11 @@ interface InstrumentSummaryRow {
   category: InstrumentCategory
   report_format: ReportFormat
   primary_category_label: string
+  featured: boolean
   instrument: string
   as_of_date: string
+  primary_long: number
+  primary_short: number
   primary_net: number
   primary_net_pct_oi: number
 }
@@ -71,7 +78,10 @@ function toInstrumentSummary(row: InstrumentSummaryRow): CotInstrumentSummary {
     reportFormat: row.report_format,
     reportFormatLabel: REPORT_FORMATS[row.report_format].label,
     primaryCategoryLabel: row.primary_category_label,
+    featured: row.featured,
     asOfDate: row.as_of_date,
+    long: row.primary_long,
+    short: row.primary_short,
     net: row.primary_net,
     netPctOi: row.primary_net_pct_oi
   }
@@ -90,11 +100,11 @@ const REPORT_TYPE_FOR_FORMAT_SQL = `CASE i.report_format ${Object.entries(REPORT
  */
 async function queryLatestSummaries(contractCode?: string): Promise<CotInstrumentSummary[]> {
   const { rows } = await pool.query<InstrumentSummaryRow>(
-    `SELECT i.contract_code, i.display_name, i.exchange, i.category, i.report_format, i.primary_category_label,
-            r.instrument, r.as_of_date, r.primary_net, r.primary_net_pct_oi
+    `SELECT i.contract_code, i.display_name, i.exchange, i.category, i.report_format, i.primary_category_label, i.featured,
+            r.instrument, r.as_of_date, r.primary_long, r.primary_short, r.primary_net, r.primary_net_pct_oi
      FROM instruments i
      JOIN LATERAL (
-       SELECT instrument, as_of_date, primary_net, primary_net_pct_oi
+       SELECT instrument, as_of_date, primary_long, primary_short, primary_net, primary_net_pct_oi
        FROM cot_reports
        WHERE contract_code = i.contract_code AND report_type = ${REPORT_TYPE_FOR_FORMAT_SQL}
        ORDER BY as_of_date DESC

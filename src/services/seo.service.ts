@@ -216,18 +216,22 @@ export function buildOverviewPage(instruments: CotInstrumentSummary[], siteUrl: 
     })
     .join('')
 
+  // With nothing live yet (a fresh database), avoid a dangling "Report: " and "across  markets".
+  const heading = joined ? `Commitment of Traders (COT) Report: ${joined}` : 'Commitment of Traders (COT) Report'
+  const scope = joined ? ` across ${joined.toLowerCase()} futures` : ''
+
   const body = `
     <main>
-      <h1>Commitment of Traders (COT) Report: ${escapeHtml(joined)}</h1>
-      <p>Weekly CFTC net positioning across ${escapeHtml(joined.toLowerCase())} futures, for the trader group each
-      report treats as speculators. Net = Long minus Short; positive means the group is net long.</p>${sections}
+      <h1>${escapeHtml(heading)}</h1>
+      <p>Weekly CFTC net positioning${escapeHtml(scope)}, for the trader group each report treats as
+      speculators. Net = Long minus Short; positive means the group is net long.</p>${sections}
     </main>`
 
   return {
     seo: {
       title: OVERVIEW_TITLE,
       description:
-        `Weekly CFTC Commitment of Traders (COT) data across ${joined} markets. ` +
+        `Weekly CFTC Commitment of Traders (COT) data${joined ? ` across ${joined} markets` : ''}. ` +
         'Net positioning, trend charts and full history.',
       path: '/',
       jsonLd: [{

@@ -26,7 +26,10 @@ const gold: CotInstrumentSummary = {
   reportFormat: 'legacy',
   reportFormatLabel: 'CFTC Legacy Report · Futures Only',
   primaryCategoryLabel: 'Non-Commercial',
+  featured: true,
   asOfDate: '2026-09-15',
+  long: 258059,
+  short: 27721,
   net: 230338,
   netPctOi: 56.19
 }
@@ -51,7 +54,10 @@ const eurUsd: CotInstrumentSummary = {
   reportFormat: 'tff',
   reportFormatLabel: 'CFTC Traders in Financial Futures (TFF) · Futures Only',
   primaryCategoryLabel: 'Leveraged Funds',
+  featured: true,
   asOfDate: '2026-09-15',
+  long: 103260,
+  short: 131416,
   net: -28156,
   netPctOi: -3.06
 }
@@ -115,6 +121,14 @@ test('overview page groups instruments by category, driven by the data rather th
   assert.ok(html.includes('<a href="/instruments/099741">EUR/USD</a>'))
   assert.ok(html.includes('<td>Leveraged Funds</td>'))
   assert.ok(html.includes('across Metals and Financials markets'))
+})
+
+test('overview page with nothing live yet has no dangling punctuation', () => {
+  const html = renderPage(TEMPLATE, buildOverviewPage([], SITE), SITE)
+
+  assert.ok(html.includes('<h1>Commitment of Traders (COT) Report</h1>'))
+  assert.ok(html.includes('Weekly CFTC Commitment of Traders (COT) data. Net positioning'))
+  assert.ok(!html.includes('across  '), 'no empty category list')
 })
 
 test('instrument page for a TFF market uses its own trader-group label and report format', () => {

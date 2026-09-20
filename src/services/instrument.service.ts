@@ -64,3 +64,46 @@ export async function activateInstrument(contractCode: string): Promise<Activati
     latestAsOfDate: stats[0].latest
   }
 }
+
+/** Registers new instruments. Existing rows are left exactly as they are. Returns how many were actually new. */
+export async function insertInstruments(instruments: readonly InstrumentRow[]): Promise<number> {
+  let inserted = 0
+
+  for (const instrument of instruments) {
+    const result = await pool.query(
+      `INSERT INTO instruments (contract_code, display_name, exchange, category, report_format, primary_category_label, active, featured)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (contract_code) DO NOTHING`,
+      [
+        instrument.contract_code, instrument.display_name, instrument.exchange, instrument.category,
+        instrument.report_format, instrument.primary_category_label, instrument.active, instrument.featured
+      ]
+    )
+    inserted += result.rowCount ?? 0
+  }
+
+  return inserted
+}
+
+export async function listRegisteredCodes(): Promise<Set<string>> {
+  const { rows } = await pool.query<{ contract_code: string }>('SELECT contract_code FROM instruments')
+  return new Set(rows.map((row) => row.contract_code))
+}
+
+/** Inactive instruments that already have stored data — the ones `activateInstrument` would accept. */
+export async function listActivatableCodes(): Promise<string[]> {
+  const typeCase = Object.entries(REPORT_FORMATS)
+    .map(([format, { reportType }]) => `WHEN '${format}' THEN '${reportType}'`)
+    .join(' ')
+
+  const { rows } = await pool.query<{ contract_code: string }>(
+    `SELECT i.contract_code
+     FROM instruments i
+     WHERE NOT i.active AND EXISTS (
+       SELECT 1 FROM cot_reports r
+       WHERE r.contract_code = i.contract_code AND r.report_type = CASE i.report_format ${typeCase} END
+     )
+     ORDER BY i.contract_code`
+  )
+  return rows.map((row) => row.contract_code)
+}

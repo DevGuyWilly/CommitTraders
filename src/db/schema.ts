@@ -24,6 +24,12 @@ export interface InstrumentRow {
   /** What this report format calls the speculator-equivalent trader group, e.g. "Non-Commercial" or "Leveraged Funds". */
   primary_category_label: string
   active: boolean
+  /**
+   * Shown on first load. Everything else in the category is reachable through
+   * "Load more" and search, so a category can hold hundreds of markets without
+   * burying the main ones.
+   */
+  featured: boolean
 }
 
 /**
@@ -247,18 +253,38 @@ ALTER TABLE cot_reports
 `
 
 /**
+ * Adds `featured` to a registry created before it existed. Runs once, when the
+ * column is first added, and marks the seeded instruments featured so
+ * everything that was already visible stays visible. Never re-applied — a
+ * later un-feature by hand must stick.
+ */
+async function ensureFeaturedColumn(): Promise<void> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = 'instruments' AND column_name = 'featured'`
+  )
+  if (rows.length > 0) return
+
+  await pool.query('ALTER TABLE instruments ADD COLUMN featured BOOLEAN NOT NULL DEFAULT false')
+  await pool.query(
+    'UPDATE instruments SET featured = true WHERE contract_code = ANY($1)',
+    [INSTRUMENT_SEED.filter((instrument) => instrument.featured).map((instrument) => instrument.contract_code)]
+  )
+}
+
+/**
  * Bootstraps the registry. DO NOTHING on conflict so re-running the migration
  * never reverts a row someone has edited since (e.g. flipped `active`).
  */
 async function seedInstruments(): Promise<void> {
   for (const instrument of INSTRUMENT_SEED) {
     await pool.query(
-      `INSERT INTO instruments (contract_code, display_name, exchange, category, report_format, primary_category_label, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO instruments (contract_code, display_name, exchange, category, report_format, primary_category_label, active, featured)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (contract_code) DO NOTHING`,
       [
         instrument.contract_code, instrument.display_name, instrument.exchange, instrument.category,
-        instrument.report_format, instrument.primary_category_label, instrument.active
+        instrument.report_format, instrument.primary_category_label, instrument.active, instrument.featured
       ]
     )
   }
@@ -268,5 +294,6 @@ export async function migrate(): Promise<void> {
   await pool.query(CREATE_COT_REPORTS_TABLE)
   await pool.query(CREATE_INSTRUMENTS_TABLE)
   await pool.query(GENERALIZE_COT_REPORTS)
+  await ensureFeaturedColumn()
   await seedInstruments()
 }

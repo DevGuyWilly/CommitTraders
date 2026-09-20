@@ -17,7 +17,8 @@
     "db:migrate": "ts-node src/db/migrate.ts",
     "cftc:ingest": "ts-node src/jobs/ingest-cftc.ts",
     "cftc:backfill": "ts-node src/jobs/backfill-cftc.ts",
-    "instruments:activate": "ts-node src/jobs/activate-instrument.ts"
+    "instruments:activate": "ts-node src/jobs/activate-instrument.ts",
+    "instruments:sync-tff": "ts-node src/jobs/sync-tff-instruments.ts"
   },
   "keywords": [],
   "author": "",

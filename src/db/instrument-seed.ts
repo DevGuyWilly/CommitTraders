@@ -17,7 +17,8 @@ const COMEX_METAL = {
   report_format: 'legacy',
   primary_category_label: 'Non-Commercial',
   // Already ingested and served in production.
-  active: true
+  active: true,
+  featured: true
 } as const
 
 const TFF_FINANCIAL = {
@@ -26,7 +27,10 @@ const TFF_FINANCIAL = {
   primary_category_label: 'Leveraged Funds',
   // Stays off until ingestion has been verified and at least one week is
   // stored for the contract — see `npm run instruments:activate`.
-  active: false
+  active: false,
+  // The first markets asked for. Every other TFF contract is added, unfeatured,
+  // by `npm run instruments:sync-tff`.
+  featured: true
 } as const
 
 export const INSTRUMENT_SEED: readonly InstrumentRow[] = [

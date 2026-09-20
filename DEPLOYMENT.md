@@ -105,8 +105,11 @@ The Financials (TFF) markets ship switched off. Roll them out in this order — 
 
 1. `npm run db:migrate` — adds the `instruments` registry and the format-neutral `primary_*` columns (backfilled from the existing Non-Commercial columns; nothing is dropped or rewritten). **Run it before deploying the new code**, which reads those columns.
 2. Deploy the new code.
-3. `npm run cftc:backfill` — loads TFF history from 2025 to present for the registered financials.
-4. Check the data, then turn markets on one at a time: `npm run instruments:activate -- 099741` (EUR/USD), `097741` (Japanese Yen), `043602` (10-Year T-Note), `13874A` (S&P 500 E-mini), `1170E1` (VIX). It refuses any contract with no stored data.
+3. `npm run instruments:sync-tff` — registers every other contract in the TFF report (about 90: currencies, rates, equity indexes, crypto) as inactive and not featured. Add `-- --dry-run` first to see what it would add.
+4. `npm run cftc:backfill` — loads TFF history from 2025 to present for everything registered.
+5. Check the data, then turn markets on: `npm run instruments:activate -- 099741 097741 043602 13874A 1170E1` for the five featured ones (EUR/USD, Japanese Yen, 10-Year T-Note, S&P 500 E-mini, VIX), or `-- --all` for every registered market that has data. It goes one at a time and refuses any contract with no stored data.
+
+Only the five are `featured`, so the app shows just those on first load; the rest appear through "Load more" and search. To change what's featured, edit the `featured` column in `instruments`. Contracts that CFTC only started reporting recently (some crypto) will have fewer weeks than 2025-to-now; that's expected.
 
 The weekly Render Cron Job (`node dist/jobs/ingest-cftc.js`) needs no change — it now ingests both reports.
 

@@ -8,7 +8,7 @@ import type { CotReportRow } from '../../../src/db/schema'
 import { parseLegacyReportText } from '../../../src/services/cftc.service'
 import { parseTffCsv } from '../../../src/services/cftc-tff.service'
 import { upsertReports } from '../../../src/services/cot.service'
-import { activateInstrument } from '../../../src/services/instrument.service'
+import { activateInstrument, insertInstruments, listActivatableCodes } from '../../../src/services/instrument.service'
 import { storeRegisteredRows } from '../../../src/jobs/weekly-cftc.job'
 
 const fixture = (name: string) => readFileSync(path.join(__dirname, '..', '..', 'fixtures', name), 'utf8')
@@ -29,11 +29,14 @@ const tffTemplate = parseTffCsv(fixture('tff-weekly-sample.txt')).rows.find((row
 const legacyRow: CotReportRow = { ...legacyTemplate, contract_code: CODES.legacyActive, instrument: 'TEST METAL', as_of_date: AS_OF }
 const tffRow = (contractCode: string): CotReportRow => ({ ...tffTemplate, contract_code: contractCode, instrument: 'TEST FX', as_of_date: AS_OF })
 
-async function insertInstrument(code: string, opts: { name: string, category: string, format: string, label: string, active: boolean }) {
+async function insertInstrument(
+  code: string,
+  opts: { name: string, category: string, format: string, label: string, active: boolean, featured?: boolean }
+) {
   await pool.query(
-    `INSERT INTO instruments (contract_code, display_name, exchange, category, report_format, primary_category_label, active)
-     VALUES ($1, $2, 'TESTEX', $3, $4, $5, $6)`,
-    [code, opts.name, opts.category, opts.format, opts.label, opts.active]
+    `INSERT INTO instruments (contract_code, display_name, exchange, category, report_format, primary_category_label, active, featured)
+     VALUES ($1, $2, 'TESTEX', $3, $4, $5, $6, $7)`,
+    [code, opts.name, opts.category, opts.format, opts.label, opts.active, opts.featured ?? false]
   )
 }
 
@@ -47,8 +50,8 @@ test('registry-driven /api/cot-reports', async (t) => {
   await cleanup() // in case an earlier run died half-way
   t.after(cleanup)
 
-  await insertInstrument(CODES.legacyActive, { name: 'Test Metal', category: 'metals', format: 'legacy', label: 'Non-Commercial', active: true })
-  await insertInstrument(CODES.tffActive, { name: 'Test FX', category: 'financials', format: 'tff', label: 'Leveraged Funds', active: true })
+  await insertInstrument(CODES.legacyActive, { name: 'Test Metal', category: 'metals', format: 'legacy', label: 'Non-Commercial', active: true, featured: true })
+  await insertInstrument(CODES.tffActive, { name: 'Test FX', category: 'financials', format: 'tff', label: 'Leveraged Funds', active: true, featured: true })
   await insertInstrument(CODES.tffInactive, { name: 'Test Inactive', category: 'financials', format: 'tff', label: 'Leveraged Funds', active: false })
   await insertInstrument(CODES.tffNoData, { name: 'Test No Data', category: 'financials', format: 'tff', label: 'Leveraged Funds', active: true })
 
@@ -88,12 +91,17 @@ test('registry-driven /api/cot-reports', async (t) => {
         reportFormat: 'tff',
         reportFormatLabel: 'CFTC Traders in Financial Futures (TFF) · Futures Only',
         primaryCategoryLabel: 'Leveraged Funds',
+        featured: true,
         asOfDate: AS_OF,
+        long: 103260,
+        short: 131416,
         net: -28156,
         netPctOi: -3.06
       }
     )
 
+    assert.strictEqual(metal.long, 258059)
+    assert.strictEqual(metal.short, 27721)
     assert.strictEqual(metal.category, 'metals')
     assert.strictEqual(metal.reportFormat, 'legacy')
     assert.strictEqual(metal.primaryCategoryLabel, 'Non-Commercial')
@@ -106,6 +114,40 @@ test('registry-driven /api/cot-reports', async (t) => {
 
     assert.ok(!codes.includes(CODES.tffInactive), 'inactive is hidden even though data exists')
     assert.ok(!codes.includes(CODES.tffNoData), 'active is hidden until real data exists')
+  })
+
+  await t.test('an unfeatured instrument is still listed, flagged so the UI can keep it behind "Load more"', async () => {
+    await pool.query('UPDATE instruments SET active = true WHERE contract_code = $1', [CODES.tffInactive])
+    try {
+      const list = JSON.parse((await app.inject({ url: '/api/cot-reports' })).payload) as Array<{ contractCode: string, featured: boolean }>
+      assert.strictEqual(list.find((item) => item.contractCode === CODES.tffInactive)?.featured, false)
+      assert.strictEqual(list.find((item) => item.contractCode === CODES.tffActive)?.featured, true)
+    } finally {
+      await pool.query('UPDATE instruments SET active = false WHERE contract_code = $1', [CODES.tffInactive])
+    }
+  })
+
+  await t.test('insertInstruments adds new rows and never overwrites an existing one', async () => {
+    await pool.query("UPDATE instruments SET display_name = 'Edited by hand' WHERE contract_code = $1", [CODES.tffNoData])
+
+    const added = await insertInstruments([
+      { contract_code: CODES.tffNoData, display_name: 'Would overwrite', exchange: 'X', category: 'financials', report_format: 'tff', primary_category_label: 'Leveraged Funds', active: true, featured: true },
+      { contract_code: 'TST005', display_name: 'Brand new', exchange: 'X', category: 'financials', report_format: 'tff', primary_category_label: 'Leveraged Funds', active: false, featured: false }
+    ])
+
+    assert.strictEqual(added, 1)
+    const { rows } = await pool.query('SELECT contract_code, display_name, featured FROM instruments WHERE contract_code = ANY($1) ORDER BY 1', [[CODES.tffNoData, 'TST005']])
+    assert.deepStrictEqual(rows, [
+      { contract_code: CODES.tffNoData, display_name: 'Edited by hand', featured: false },
+      { contract_code: 'TST005', display_name: 'Brand new', featured: false }
+    ])
+  })
+
+  await t.test('listActivatableCodes offers inactive instruments that have data, and not those without', async () => {
+    const codes = await listActivatableCodes()
+    assert.ok(codes.includes(CODES.tffInactive))
+    assert.ok(!codes.includes(CODES.tffNoData), 'active already, and no data')
+    assert.ok(!codes.includes('TST005'), 'inactive but no data')
   })
 
   await t.test('the detail endpoint serves a TFF market from the same primary columns', async () => {

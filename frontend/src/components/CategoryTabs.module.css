@@ -1,0 +1,39 @@
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--space-section-gap-lg);
+}
+
+.tab {
+  padding: 0.5rem 1.125rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-faint);
+}
+
+.tab:focus-visible {
+  outline: 0.125rem solid var(--color-accent);
+  outline-offset: 0.125rem;
+}
+
+/* Selected: gold rather than green/red — those are reserved for long/short. */
+.active {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+  background: rgba(212, 162, 78, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}

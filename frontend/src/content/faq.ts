@@ -17,13 +17,13 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'non-commercial',
     question: 'What does "Non-Commercial" mean?',
     answer:
-      "The CFTC's Legacy report calls speculators Non-Commercial, as opposed to Commercial traders (producers, merchants, processors) hedging real exposure. This dashboard focuses on Non-Commercial net positioning because it's the category most often read as a sentiment signal."
+      "In the CFTC's Legacy report (used here for Metals), speculators are called Non-Commercial, as opposed to Commercial traders (producers, merchants, processors) hedging real exposure. It's the category most often read as a sentiment signal."
   },
   {
     id: 'how-net-calculated',
     question: 'How is Net calculated?',
     answer:
-      'Net = Long − Short for the Non-Commercial category. Positive means speculators hold more long contracts than short; negative means the opposite.'
+      'Net = Long − Short for the trader group the report treats as speculators — Non-Commercial for Metals, Leveraged Funds for Financials. Positive means that group holds more long contracts than short; negative means the opposite.'
   },
   {
     id: 'history-fixed',
@@ -35,12 +35,18 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'report-format',
     question: 'Which report format does this dashboard use?',
     answer:
-      'The Legacy, futures-only report, broken down by exchange. The CFTC also publishes Disaggregated and Traders-in-Financial-Futures formats with different category breakdowns (e.g. Managed Money, Swap Dealers) — not currently covered here.'
+      'It depends on the market. Metals use the CFTC Legacy futures-only report; Financials use the Traders in Financial Futures (TFF) futures-only report. The CFTC also publishes a Disaggregated format for physical commodities (with categories like Managed Money and Swap Dealers) — not currently covered here.'
   },
   {
     id: 'data-source',
     question: 'Where does the underlying data come from?',
     answer:
-      "Directly from the CFTC's published Legacy report at cftc.gov — this dashboard doesn't modify or reinterpret the source figures, only aggregates and visualizes them."
+      "Directly from the CFTC's published reports at cftc.gov — this dashboard doesn't modify or reinterpret the source figures, only aggregates and visualizes them."
+  },
+  {
+    id: 'different-categories',
+    question: 'Why do Metals and Financials show different trader categories?',
+    answer:
+      "The CFTC publishes a separate report for each. The Legacy report splits traders into Commercial and Non-Commercial; the TFF report, built for currencies, interest rates and equity indexes, splits them into Dealer/Intermediary, Asset Manager/Institutional, Leveraged Funds and Other Reportables. This dashboard shows Non-Commercial for Metals and Leveraged Funds for Financials as the speculator-equivalent group. The definitions aren't identical, so compare positioning within a market over time rather than across the two categories."
   }
 ]

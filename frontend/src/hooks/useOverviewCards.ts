@@ -1,34 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchHistory, fetchInstrumentList } from '../api/client'
-import { displayNameFor, exchangeAbbreviation } from '../lib/instruments'
+import { fetchInstrumentList } from '../api/client'
 
 export interface OverviewCard {
+  displayName: string
+  /** Raw CFTC market name — not shown, but searchable ("euro fx" finds EUR/USD). */
   instrument: string
   exchange: string
   contractCode: string
+  category: string
+  categoryLabel: string
+  reportFormatLabel: string
+  primaryCategoryLabel: string
+  featured: boolean
+  asOfDate: string
   net: number
   netPctOi: number
-  long?: number
-  short?: number
+  long: number
+  short: number
   href: string
 }
 
 export interface UseOverviewCardsResult {
   cards: OverviewCard[]
-  updatedDate?: string
   loading: boolean
   error: Error | null
 }
 
 /**
- * One card per instrument the backend actually has data for — no fixed
- * curation. The list endpoint doesn't return long/short (only net/netPctOi),
- * so we additionally fetch each instrument's latest single row (?limit=1)
- * to fill those in, without changing the backend.
+ * One card per instrument the backend lists — no fixed curation, and in the
+ * order the API returns them (category order, then name). Everything a card
+ * shows comes back in the single list response.
  */
 export function useOverviewCards(): UseOverviewCardsResult {
   const [cards, setCards] = useState<OverviewCard[]>([])
-  const [updatedDate, setUpdatedDate] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const requestIdRef = useRef(0)
@@ -38,35 +42,28 @@ export function useOverviewCards(): UseOverviewCardsResult {
     setLoading(true)
 
     fetchInstrumentList()
-      .then(async (summaries) => {
+      .then((summaries) => {
         if (requestId !== requestIdRef.current) return
 
-        const latest = summaries.reduce<string | undefined>(
-          (acc, summary) => (!acc || summary.asOfDate > acc ? summary.asOfDate : acc),
-          undefined
-        )
-        setUpdatedDate(latest)
-
-        const details = await Promise.all(
-          summaries.map((summary) => fetchHistory(summary.contractCode, { limit: 1 }).catch(() => null))
-        )
-
-        if (requestId !== requestIdRef.current) return
-
-        const nextCards: OverviewCard[] = summaries
-          .map((summary, i) => ({
-            instrument: displayNameFor(summary.instrument),
-            exchange: exchangeAbbreviation(summary.exchange),
+        setCards(
+          summaries.map((summary) => ({
+            displayName: summary.displayName,
+            instrument: summary.instrument,
+            exchange: summary.exchange,
             contractCode: summary.contractCode,
+            category: summary.category,
+            categoryLabel: summary.categoryLabel,
+            reportFormatLabel: summary.reportFormatLabel,
+            primaryCategoryLabel: summary.primaryCategoryLabel,
+            featured: summary.featured,
+            asOfDate: summary.asOfDate,
             net: summary.net,
             netPctOi: summary.netPctOi,
-            long: details[i]?.data[0]?.long,
-            short: details[i]?.data[0]?.short,
+            long: summary.long,
+            short: summary.short,
             href: `/instruments/${summary.contractCode}`
           }))
-          .sort((a, b) => a.instrument.localeCompare(b.instrument))
-
-        setCards(nextCards)
+        )
         setError(null)
       })
       .catch((err: unknown) => {
@@ -78,5 +75,5 @@ export function useOverviewCards(): UseOverviewCardsResult {
       })
   }, [])
 
-  return { cards, updatedDate, loading, error }
+  return { cards, loading, error }
 }
