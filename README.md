@@ -6,7 +6,7 @@ Digitalizes the CFTC Commitment of Traders report so retail and day traders can 
 
 The app has two jobs:
 
-**Weekly ingestion** — every Friday at 8pm ET, fetches the CFTC reports (Legacy for metals, Traders in Financial Futures for financials), parses them, computes derived fields, and upserts the results into PostgreSQL. Saturday and Monday runs catch reports delayed by federal holidays. Re-running is always safe — rows are upserted, never duplicated.
+**Weekly ingestion** — a scheduled Render Cron Job runs every Friday at 21:00 UTC, fetches the CFTC reports (Legacy for metals, Traders in Financial Futures for financials), parses them, computes derived fields, and upserts the results into PostgreSQL. Saturday and Monday runs catch reports delayed by federal holidays. Re-running is always safe — rows are upserted, never duplicated.
 
 **Instrument registry** — the `instruments` table decides which markets are tracked and shown (contract code, display name, exchange, category, report format, and the report's speculator-equivalent trader group). Ingestion only stores registered contracts, and the API lists only instruments that are `active` **and** have data. Adding a market is a new row plus ingestion — no code change. `featured` instruments are what the app shows on first load; the rest sit behind "Load more" and search, so a category can hold a hundred markets without burying the main ones. Each report format maps its speculator-equivalent group (Non-Commercial for Legacy, Leveraged Funds for TFF) into the same `primary_*` columns, so everything downstream is format-agnostic.
 

@@ -3,7 +3,7 @@
 This guide outlines how to deploy **CommitTraders** using 100% **free-tier cloud services**:
 - **Database**: Supabase (Free Managed PostgreSQL)
 - **Compute / API Service**: Render or Koyeb (Free Container Web Service)
-- **Automated Ingestion**: Built-in `node-cron` or free external cron trigger
+- **Automated Ingestion**: A Render Cron Job (see section 4)
 
 ---
 
@@ -78,14 +78,17 @@ In Render Dashboard:
 
 ## 4. Weekly CFTC Report Ingestion
 
-The application has built-in `node-cron` scheduling (`src/plugins/cron.ts`) that runs automatically whenever the web service is running:
-- **Schedule**: Friday, Saturday, and Monday at 8:00 PM US/Eastern (after CFTC releases reports).
-- **Behavior**: Downloads latest metals report, computes derived fields, and performs idempotent upserts into Supabase PostgreSQL.
+Ingestion is run by a **Render Cron Job**, a separate service from the web app, so it fires on schedule even while the free web service is asleep. The web app itself does not schedule anything.
 
-> **Note on Free Tier Sleep Modes**: Free web services (like Render) sleep after 15 minutes of inactivity. If the service is asleep, `node-cron` inside the app won't trigger while sleeping.
->
-> **Recommended Solution for Free Tier**:
-> Set up an external free ping service (e.g. [cron-job.org](https://cron-job.org) or UptimeRobot) to hit `https://your-app.onrender.com/api/cot-reports` every 10 minutes to keep the instance awake, or trigger an ingestion job via GitHub Actions.
+Create it in Render (**New +** -> **Cron Job**), pointing at the same repository, with:
+- **Build Command**: `npm install && npm run build:ts`
+- **Command**: `node dist/jobs/ingest-cftc.js`
+- **Schedule**: `0 21 * * 1,5,6` (21:00 UTC on Friday, Saturday and Monday). The CFTC publishes Friday at 3:30pm ET; the Saturday and Monday runs catch holiday-delayed releases.
+- **Environment**: the same `DATABASE_URL` as the web service.
+
+Each run fetches the latest week of the Legacy report (metals) and the TFF report (financials) and upserts rows for every instrument in the `instruments` table. Re-running is always safe: rows are upserted, never duplicated. To run it by hand, use `npm run cftc:ingest`, or trigger a run from the cron job's page in Render and read its logs.
+
+> **Free-tier cold starts**: separately from ingestion, a sleeping Render web service takes about a minute to answer, which hurts page speed and crawling. If that matters, point an external ping service (e.g. [cron-job.org](https://cron-job.org) or UptimeRobot) at `https://your-app.onrender.com/api/cot-reports` every 10 minutes, or move to a paid instance.
 
 ---
 
